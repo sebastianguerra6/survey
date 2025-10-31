@@ -1,0 +1,13 @@
+# Dependencias del proyecto de Encuestas de Análisis de Caso
+# Python 3.8+
+
+# Tkinter viene incluido con Python estándar, no necesita instalarse
+# SQLite viene incluido con Python estándar, no necesita instalarse
+
+# Para pruebas (opcional)
+pytest>=7.0.0
+pytest-cov>=4.0.0
+
+# Para exportación a Excel (opcional, si se requiere)
+openpyxl>=3.0.0
+
