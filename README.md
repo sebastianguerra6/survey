@@ -1,62 +1,67 @@
-# Sistema de Encuestas de Análisis de Caso
+# Sistema de Evaluación de Analistas
 
-Sistema completo desarrollado en Python con Tkinter para la gestión de encuestas de análisis de caso, utilizando SQLite como base de datos con SQL estándar para futura migración a SQL Server.
+Sistema completo en Python con Tkinter para evaluar el desempeño de analistas en resolución de casos mediante un banco de preguntas configurable.
 
 ## Características
 
-- **Interfaz gráfica** con Tkinter
-- **Base de datos SQLite** con SQL estándar
-- **Arquitectura limpia** (MVC/Repository)
-- **Gestión completa de encuestas** con cálculo automático de puntajes
-- **Administración** de Casos, Áreas y Preguntas
-- **Exportación** de resultados a CSV
-
-## Requisitos
-
-- Python 3.8 o superior
-- Tkinter (incluido con Python estándar)
-- SQLite3 (incluido con Python estándar)
-
-## Instalación
-
-1. Clonar o descargar el proyecto
-2. Instalar dependencias opcionales (para pruebas):
-
-```bash
-pip install -r requirements.txt
-```
+- **Evaluación de Analistas**: Sistema completo para evaluar analistas con preguntas personalizables
+- **Perfiles de Evaluadores**: Manager, Senior Manager, Analyst, Other
+- **Banco de Preguntas**: CRUD completo con penalizaciones diferenciadas por graduado/no graduado
+- **Prefills por Perfil**: Configuración de respuestas por defecto según perfil
+- **Cálculo Automático de Puntaje**: Inicia en 100 y resta penalizaciones según respuestas
+- **Comentarios Obligatorios**: Campo obligatorio para respuestas "No"
+- **Exportación**: CSV y Excel
+- **Auditoría**: Registro completo de todas las acciones
 
 ## Estructura del Proyecto
 
 ```
 survey/
-├── survey/
-│   ├── models/              # Modelos de datos (entidades)
-│   │   ├── case.py
-│   │   ├── area.py
-│   │   ├── question.py
-│   │   └── survey.py
-│   ├── database/            # Capa de base de datos
-│   │   ├── db_connection.py
-│   │   ├── init_db.py
-│   │   └── schema.sql
-│   ├── repository/         # Capa Repository/DAO
-│   │   ├── case_repository.py
-│   │   ├── area_repository.py
-│   │   ├── question_repository.py
-│   │   └── survey_repository.py
-│   ├── controllers/         # Controladores (lógica de negocio)
-│   │   ├── survey_controller.py
-│   │   └── admin_controller.py
-│   ├── views/               # Vistas Tkinter
-│   │   ├── main_window.py
-│   │   ├── admin_windows.py
-│   │   └── survey_summary_window.py
-│   └── main.py             # Punto de entrada
-├── tests/                   # Pruebas unitarias
-├── data/                    # Base de datos SQLite (se crea automáticamente)
-├── requirements.txt
-└── README.md
+├── main.py                        # Punto de entrada
+├── requirements.txt               # Dependencias
+├── README.md                      # Documentación
+│
+├── /src/                          # Código fuente
+│   ├── /models/                   # Entidades (Profile, Question, Survey)
+│   ├── /services/                 # Lógica de negocio
+│   ├── /repositories/             # Acceso a datos (CRUD, SQL)
+│   ├── /ui/                       # Interfaz Tkinter
+│   ├── /core/                     # Utilidades (database, init_db, seeds)
+│   └── __init__.py
+│
+├── /data/                         # Base de datos SQLite
+│   └── app.db
+│
+├── /tests/                        # Pruebas unitarias
+│   ├── test_models.py
+│   ├── test_services.py
+│   └── test_repositories.py
+│
+└── /docs/                         # Documentación técnica
+    └── MIGRATION_TO_SQLSERVER.md
+```
+
+## Instalación
+
+1. **Clonar el repositorio**:
+```bash
+git clone <url-del-repositorio>
+cd survey
+```
+
+2. **Instalar dependencias**:
+```bash
+pip install -r requirements.txt
+```
+
+3. **Inicializar base de datos**:
+```bash
+python -m src.core.init_db
+```
+
+4. **Insertar datos de ejemplo (opcional)**:
+```bash
+python -m src.core.seeds
 ```
 
 ## Uso
@@ -64,145 +69,100 @@ survey/
 ### Ejecutar la aplicación
 
 ```bash
-python -m survey
+python main.py
 ```
 
-O directamente:
+### Flujo de Evaluación
 
-```bash
-python survey/main.py
-```
-
-### Inicialización
-
-La primera vez que se ejecuta la aplicación, se crea automáticamente:
-- La estructura de la base de datos
-- Las 7 áreas por defecto: Estrategia, Finanzas, Operaciones, Tecnología, RRHH, Legal, Riesgos
-
-### Flujo de trabajo
-
-1. **Administración inicial** (opcional):
-   - Menú → Administración → Casos: Crear casos
-   - Menú → Administración → Preguntas: Crear preguntas con sus penalizaciones por posición
-
-2. **Crear encuesta**:
-   - Ingresar Nombre y SID (obligatorios)
-   - Seleccionar Caso (obligatorio)
-   - Seleccionar Posición: Manager, Senior Manager, Analyst, Senior Analyst (obligatorio)
-   - Seleccionar Área (obligatorio)
-   - Clic en "Cargar Preguntas"
-   - Responder las preguntas (Sí/No/N/A)
-   - El puntaje se actualiza en tiempo real
-   - Clic en "Guardar Encuesta"
-   - Ver resumen y exportar si se desea
-
-## Funcionalidades
-
-### Gestión de Encuestas
-
-- **Puntaje inicial**: 100 puntos
-- **Respuestas**:
-  - Sí → 0 penalización
-  - No → resta el valor de penalización configurado para la posición
-  - N/A → 0 penalización
-- **Puntaje mínimo**: 0
+1. **Seleccionar Perfil del Evaluador**: Manager, Senior Manager, Analyst, Other
+2. **Ingresar Nombre del Analista**: Nombre completo del analista a evaluar
+3. **Indicar si es Graduado**: Checkbox para indicar si el analista es graduado
+4. **Cargar Preguntas**: Se cargan automáticamente con prefills según el perfil
+5. **Responder Preguntas**: Sí / No / N/A
+   - Si responde "No", **debe** ingresar un comentario obligatorio
+6. **Ver Puntaje en Tiempo Real**: El puntaje se actualiza automáticamente
+7. **Guardar Evaluación**: Guarda la evaluación en la base de datos
+8. **Exportar**: CSV o Excel con todas las evaluaciones
 
 ### Administración
 
-#### Casos (CRUD)
-- Crear, editar y eliminar casos
-- Marcar como activo/inactivo
-
-#### Áreas (CRUD)
-- Crear, editar y eliminar áreas
-- 7 áreas por defecto
-- Marcar como activo/inactivo
-
-#### Preguntas (CRUD)
+#### Gestión de Preguntas
+- **Menú → Administración → Preguntas**
 - Crear, editar y eliminar preguntas
-- Asignar a un área
-- Configurar penalizaciones por posición (4 valores numéricos ≥ 0)
-- Marcar como activa/inactiva
-- **Importar/Exportar CSV** del banco de preguntas
+- Configurar penalizaciones para graduados y no graduados
+- Establecer respuestas por defecto por perfil
 
-### Exportación
-
-- Exportar resultado de encuesta a CSV
-- Incluye: datos generales, puntaje, resumen de respuestas y detalle completo
-
-## Reglas de Negocio
-
-1. Una encuesta = una persona + un caso + un área + preguntas de esa área
-2. El set de preguntas mostrado depende solo de Área y Posición
-3. No es necesario completar otras áreas
-4. El puntaje mínimo es 0
-5. Todos los campos marcados como obligatorios deben completarse
-
-## Arquitectura
-
-El proyecto sigue una arquitectura limpia con separación de responsabilidades:
-
-- **Models**: Entidades de dominio
-- **Database**: Conexión y esquema de BD
-- **Repository**: Acceso a datos con SQL crudo (DAO pattern)
-- **Controllers**: Lógica de negocio
-- **Views**: Interfaz de usuario (Tkinter)
-
-### SQL Estándar
-
-El código SQL está escrito siguiendo estándares para facilitar futura migración a SQL Server:
-- Sin funciones específicas de SQLite
-- Uso de tipos de datos estándar
-- Constraints estándar (CHECK, FOREIGN KEY, UNIQUE)
-- Índices para optimización
-
-## Pruebas
-
-Ejecutar pruebas:
-
-```bash
-pytest tests/
-```
-
-Con cobertura:
-
-```bash
-pytest tests/ --cov=survey --cov-report=html
-```
+#### Gestión de Perfiles
+- **Menú → Administración → Perfiles**
+- Crear, editar y eliminar perfiles
+- Activar/desactivar perfiles
 
 ## Base de Datos
 
-La base de datos se guarda en: `data/survey.db`
+### Tablas
 
-### Esquema
-
-- **cases**: Casos
-- **areas**: Áreas
-- **questions**: Preguntas
-- **question_position_weights**: Penalizaciones por posición para cada pregunta
-- **surveys**: Encuestas
+- **profiles**: Perfiles de evaluadores
+- **questions**: Banco de preguntas
+- **profile_question_defaults**: Respuestas por defecto por perfil
+- **surveys**: Encuestas de evaluación
 - **survey_responses**: Respuestas individuales
+- **audit_log**: Log de auditoría
 
-## Documentación
+### Esquema SQL
 
-La documentación del código está incluida en los docstrings de cada módulo y función.
+El esquema está en `src/core/schema.sql` y es compatible con SQL Server para futura migración.
 
-## Desarrollo
+## Pruebas
 
-### Agregar nuevas funcionalidades
+Ejecutar todas las pruebas:
 
-1. Modelos: Agregar entidades en `models/`
-2. Repository: Crear repositorio en `repository/`
-3. Controller: Agregar lógica en `controllers/`
-4. View: Crear vista en `views/`
+```bash
+python -m unittest discover tests
+```
 
-### Migración a SQL Server
+Ejecutar pruebas específicas:
 
-Para migrar a SQL Server en el futuro:
-1. Cambiar `AUTOINCREMENT` por `IDENTITY(1,1)`
-2. Cambiar `INTEGER` por `INT`
-3. Ajustar tipos de fecha/hora según necesidad
-4. Actualizar cadena de conexión en `db_connection.py`
+```bash
+python -m unittest tests.test_models
+python -m unittest tests.test_services
+python -m unittest tests.test_repositories
+```
+
+## Cálculo de Puntaje
+
+- **Puntaje inicial**: 100.0
+- **Sí**: No resta nada
+- **No**: Resta la penalización correspondiente (graduado o no graduado)
+- **N/A**: No resta nada
+- **Mínimo**: 0.0 (no puede ser negativo)
+
+## Exportación
+
+### CSV
+- Formato: CSV estándar con encoding UTF-8
+- Incluye: Todas las encuestas con sus respuestas
+
+### Excel
+- Formato: .xlsx (requiere openpyxl)
+- Incluye: Todas las encuestas con sus respuestas en formato tabla
+
+## Tecnologías
+
+- **Python 3.8+**
+- **Tkinter**: Interfaz gráfica
+- **SQLite**: Base de datos
+- **SQL Raw**: Consultas SQL directas (sin ORM)
+
+## Arquitectura
+
+- **POO**: Programación orientada a objetos
+- **Repository Pattern**: Separación de acceso a datos
+- **Service Layer**: Lógica de negocio separada
+- **MVC**: Modelo-Vista-Controlador
+
+## Migración a SQL Server
+
+Ver documentación en `docs/MIGRATION_TO_SQLSERVER.md`
 
 ## Licencia
 
@@ -210,5 +170,4 @@ Este proyecto es de uso interno.
 
 ## Autor
 
-Desarrollado como aplicación de análisis de caso con arquitectura limpia y buenas prácticas.
-
+Sistema desarrollado para evaluación de analistas.

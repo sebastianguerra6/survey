@@ -1,2 +1,0 @@
-"""Paquete principal de la aplicación de encuestas."""
-

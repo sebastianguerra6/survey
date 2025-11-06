@@ -1,2 +1,0 @@
-"""Pruebas unitarias del proyecto."""
-
