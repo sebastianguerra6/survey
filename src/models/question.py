@@ -7,6 +7,7 @@ from typing import Optional
 class Question:
     """Representa una pregunta del banco de preguntas."""
     id: Optional[int]
+    area_id: int
     text: str
     active: bool = True
     penalty_graduated: float = 0.0
@@ -14,6 +15,8 @@ class Question:
     
     def __post_init__(self):
         """Validaciones después de la inicialización."""
+        if self.area_id is None:
+            raise ValueError("El área es obligatoria")
         if not self.text or not self.text.strip():
             raise ValueError("El texto de la pregunta no puede estar vacío")
         if self.penalty_graduated < 0:

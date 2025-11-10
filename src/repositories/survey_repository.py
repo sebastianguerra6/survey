@@ -11,11 +11,12 @@ class SurveyRepository(BaseRepository):
     def create(self, survey: Survey) -> int:
         """Crea una nueva encuesta y retorna su ID."""
         cursor = self.db.execute(
-            """INSERT INTO surveys (evaluator_profile, analyst_name, is_graduated, final_score)
-               VALUES (?, ?, ?, ?)""",
+            """INSERT INTO surveys (evaluator_profile, sid, case_id, is_graduated, final_score)
+               VALUES (?, ?, ?, ?, ?)""",
             (
                 survey.evaluator_profile,
-                survey.analyst_name,
+                survey.sid,
+                survey.case_id,
                 1 if survey.is_graduated else 0,
                 survey.final_score
             )
@@ -28,7 +29,7 @@ class SurveyRepository(BaseRepository):
         
         self.log_audit('Survey', survey_id, 'CREATE', 
                       survey.evaluator_profile, 
-                      f"Analista: {survey.analyst_name}, Score: {survey.final_score}")
+                      f"SID: {survey.sid}, Score: {survey.final_score}")
         return survey_id
     
     def create_response(self, survey_id: int, response: SurveyResponse) -> int:
@@ -49,7 +50,7 @@ class SurveyRepository(BaseRepository):
     def find_by_id(self, survey_id: int) -> Optional[Survey]:
         """Busca una encuesta por ID."""
         row = self.db.fetch_one(
-            """SELECT id, evaluator_profile, analyst_name, is_graduated, final_score, created_at
+            """SELECT id, evaluator_profile, sid, case_id, is_graduated, final_score, created_at
                FROM surveys WHERE id = ?""",
             (survey_id,)
         )
@@ -59,7 +60,8 @@ class SurveyRepository(BaseRepository):
             return Survey(
                 id=row['id'],
                 evaluator_profile=row['evaluator_profile'],
-                analyst_name=row['analyst_name'],
+                sid=row['sid'],
+                case_id=row['case_id'],
                 is_graduated=bool(row['is_graduated']),
                 final_score=row['final_score'],
                 created_at=datetime.fromisoformat(row['created_at']) if row['created_at'] else None,
@@ -89,7 +91,7 @@ class SurveyRepository(BaseRepository):
     def find_all(self) -> List[Survey]:
         """Obtiene todas las encuestas."""
         rows = self.db.fetch_all(
-            """SELECT id, evaluator_profile, analyst_name, is_graduated, final_score, created_at
+            """SELECT id, evaluator_profile, sid, case_id, is_graduated, final_score, created_at
                FROM surveys ORDER BY created_at DESC"""
         )
         surveys = []
@@ -98,7 +100,8 @@ class SurveyRepository(BaseRepository):
             surveys.append(Survey(
                 id=row['id'],
                 evaluator_profile=row['evaluator_profile'],
-                analyst_name=row['analyst_name'],
+                sid=row['sid'],
+                case_id=row['case_id'],
                 is_graduated=bool(row['is_graduated']),
                 final_score=row['final_score'],
                 created_at=datetime.fromisoformat(row['created_at']) if row['created_at'] else None,
@@ -109,14 +112,21 @@ class SurveyRepository(BaseRepository):
     def export_to_csv_data(self) -> List[dict]:
         """Exporta todas las encuestas a formato CSV."""
         surveys = self.find_all()
+        # Obtener nombres de casos
+        from src.repositories.case_repository import CaseRepository
+        case_repo = CaseRepository()
+        cases = {c.id: c.name for c in case_repo.find_all(active_only=False)}
+        
         csv_data = []
         for survey in surveys:
+            case_name = cases.get(survey.case_id, 'N/A')
             for response in survey.responses:
                 csv_data.append({
                     'survey_id': survey.id,
                     'created_at': survey.created_at.isoformat() if survey.created_at else '',
                     'evaluator_profile': survey.evaluator_profile,
-                    'analyst_name': survey.analyst_name,
+                    'sid': survey.sid,
+                    'case_name': case_name,
                     'is_graduated': 'Sí' if survey.is_graduated else 'No',
                     'question_id': response.question_id,
                     'answer': response.answer,

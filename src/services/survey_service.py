@@ -5,6 +5,7 @@ from src.models.question import Question
 from src.repositories.survey_repository import SurveyRepository
 from src.repositories.question_repository import QuestionRepository
 from src.repositories.profile_repository import ProfileRepository
+from src.repositories.case_repository import CaseRepository
 
 
 class SurveyService:
@@ -15,6 +16,7 @@ class SurveyService:
         self.survey_repo = SurveyRepository()
         self.question_repo = QuestionRepository()
         self.profile_repo = ProfileRepository()
+        self.case_repo = CaseRepository()
     
     def calculate_score(self, responses: List[SurveyResponse], is_graduated: bool, 
                        questions_map: dict) -> float:
@@ -31,7 +33,7 @@ class SurveyService:
         # Asegurar que el mínimo sea 0
         return max(0.0, score)
     
-    def create_survey(self, evaluator_profile: str, analyst_name: str, is_graduated: bool,
+    def create_survey(self, evaluator_profile: str, sid: str, case_id: int, is_graduated: bool,
                      responses: List[SurveyResponse]) -> int:
         """Crea una nueva encuesta y calcula el puntaje."""
         # Validar que todas las respuestas NO tengan comentario
@@ -47,7 +49,8 @@ class SurveyService:
         temp_survey = Survey(
             id=None,
             evaluator_profile=evaluator_profile,
-            analyst_name=analyst_name,
+            sid=sid,
+            case_id=case_id,
             is_graduated=is_graduated,
             responses=responses
         )

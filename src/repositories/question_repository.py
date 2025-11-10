@@ -10,9 +10,10 @@ class QuestionRepository(BaseRepository):
     def create(self, question: Question) -> int:
         """Crea una nueva pregunta y retorna su ID."""
         cursor = self.db.execute(
-            """INSERT INTO questions (text, active, penalty_graduated, penalty_not_graduated)
-               VALUES (?, ?, ?, ?)""",
+            """INSERT INTO questions (area_id, text, active, penalty_graduated, penalty_not_graduated)
+               VALUES (?, ?, ?, ?, ?)""",
             (
+                question.area_id,
                 question.text,
                 1 if question.active else 0,
                 question.penalty_graduated,
@@ -26,13 +27,14 @@ class QuestionRepository(BaseRepository):
     def find_by_id(self, question_id: int) -> Optional[Question]:
         """Busca una pregunta por ID."""
         row = self.db.fetch_one(
-            """SELECT id, text, active, penalty_graduated, penalty_not_graduated
+            """SELECT id, area_id, text, active, penalty_graduated, penalty_not_graduated
                FROM questions WHERE id = ?""",
             (question_id,)
         )
         if row:
             return Question(
                 id=row['id'],
+                area_id=row['area_id'],
                 text=row['text'],
                 active=bool(row['active']),
                 penalty_graduated=row['penalty_graduated'],
@@ -40,18 +42,26 @@ class QuestionRepository(BaseRepository):
             )
         return None
     
-    def find_all(self, active_only: bool = False) -> List[Question]:
-        """Obtiene todas las preguntas."""
-        query = """SELECT id, text, active, penalty_graduated, penalty_not_graduated
+    def find_all(self, active_only: bool = False, area_id: Optional[int] = None) -> List[Question]:
+        """Obtiene todas las preguntas, opcionalmente filtradas por área."""
+        query = """SELECT id, area_id, text, active, penalty_graduated, penalty_not_graduated
                    FROM questions"""
+        conditions = []
         if active_only:
-            query += " WHERE active = 1"
+            conditions.append("active = 1")
+        if area_id is not None:
+            conditions.append("area_id = ?")
+        
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
         query += " ORDER BY id"
         
-        rows = self.db.fetch_all(query)
+        params = (area_id,) if area_id is not None else ()
+        rows = self.db.fetch_all(query, params)
         return [
             Question(
                 id=row['id'],
+                area_id=row['area_id'],
                 text=row['text'],
                 active=bool(row['active']),
                 penalty_graduated=row['penalty_graduated'],
@@ -66,9 +76,10 @@ class QuestionRepository(BaseRepository):
             raise ValueError("La pregunta debe tener un ID para ser actualizada")
         
         self.db.execute(
-            """UPDATE questions SET text = ?, active = ?, penalty_graduated = ?, penalty_not_graduated = ?
+            """UPDATE questions SET area_id = ?, text = ?, active = ?, penalty_graduated = ?, penalty_not_graduated = ?
                WHERE id = ?""",
             (
+                question.area_id,
                 question.text,
                 1 if question.active else 0,
                 question.penalty_graduated,

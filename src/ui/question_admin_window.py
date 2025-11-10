@@ -4,15 +4,17 @@ from tkinter import ttk, messagebox
 from typing import Optional
 from src.services.question_service import QuestionService
 from src.services.profile_service import ProfileService
+from src.services.area_service import AreaService
 
 
 class QuestionAdminWindow:
     """Ventana para CRUD de preguntas."""
     
-    def __init__(self, parent, question_service: QuestionService, profile_service: ProfileService):
+    def __init__(self, parent, question_service: QuestionService, profile_service: ProfileService, area_service: AreaService):
         """Inicializa la ventana."""
         self.question_service = question_service
         self.profile_service = profile_service
+        self.area_service = area_service
         
         self.window = tk.Toplevel(parent)
         self.window.title("Administración de Preguntas")
@@ -23,6 +25,7 @@ class QuestionAdminWindow:
         self._setup_ui()
         self._load_questions()
         self._load_profiles()
+        self._load_areas()
     
     def _setup_ui(self):
         """Configura la interfaz."""
@@ -30,27 +33,32 @@ class QuestionAdminWindow:
         form_frame = ttk.LabelFrame(self.window, text="Nuevo/Editar Pregunta", padding="10")
         form_frame.pack(fill=tk.X, padx=10, pady=10)
         
+        # Área
+        ttk.Label(form_frame, text="Área:").grid(row=0, column=0, sticky=tk.W, padx=5, pady=5)
+        self.area_combo = ttk.Combobox(form_frame, width=30, state="readonly")
+        self.area_combo.grid(row=0, column=1, padx=5, pady=5)
+        
         # Texto
-        ttk.Label(form_frame, text="Texto:").grid(row=0, column=0, sticky=tk.W, padx=5, pady=5)
+        ttk.Label(form_frame, text="Texto:").grid(row=1, column=0, sticky=tk.W, padx=5, pady=5)
         self.text_entry = tk.Text(form_frame, width=60, height=3)
-        self.text_entry.grid(row=0, column=1, columnspan=2, padx=5, pady=5)
+        self.text_entry.grid(row=1, column=1, columnspan=2, padx=5, pady=5)
         
         # Penalización Graduado
-        ttk.Label(form_frame, text="Penalización Graduado:").grid(row=1, column=0, sticky=tk.W, padx=5, pady=5)
+        ttk.Label(form_frame, text="Penalización Graduado:").grid(row=2, column=0, sticky=tk.W, padx=5, pady=5)
         self.penalty_graduated_entry = ttk.Entry(form_frame, width=20)
-        self.penalty_graduated_entry.grid(row=1, column=1, padx=5, pady=5)
+        self.penalty_graduated_entry.grid(row=2, column=1, padx=5, pady=5)
         self.penalty_graduated_entry.insert(0, "0.0")
         
         # Penalización No Graduado
-        ttk.Label(form_frame, text="Penalización No Graduado:").grid(row=1, column=2, sticky=tk.W, padx=5, pady=5)
+        ttk.Label(form_frame, text="Penalización No Graduado:").grid(row=2, column=2, sticky=tk.W, padx=5, pady=5)
         self.penalty_not_graduated_entry = ttk.Entry(form_frame, width=20)
-        self.penalty_not_graduated_entry.grid(row=1, column=3, padx=5, pady=5)
+        self.penalty_not_graduated_entry.grid(row=2, column=3, padx=5, pady=5)
         self.penalty_not_graduated_entry.insert(0, "0.0")
         
         # Activa
         self.active_var = tk.BooleanVar(value=True)
         ttk.Checkbutton(form_frame, text="Activa", variable=self.active_var).grid(
-            row=2, column=0, padx=5, pady=5
+            row=0, column=2, padx=5, pady=5
         )
         
         # Botones
@@ -97,12 +105,12 @@ class QuestionAdminWindow:
         list_frame = ttk.LabelFrame(self.window, text="Preguntas Existentes", padding="10")
         list_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
         
-        columns = ('ID', 'Texto', 'Penalización Grad', 'Penalización No Grad', 'Activa')
+        columns = ('ID', 'Área', 'Texto', 'Penalización Grad', 'Penalización No Grad', 'Activa')
         self.tree = ttk.Treeview(list_frame, columns=columns, show='headings', height=10)
         
         for col in columns:
             self.tree.heading(col, text=col)
-            self.tree.column(col, width=150)
+            self.tree.column(col, width=120)
         
         scrollbar = ttk.Scrollbar(list_frame, orient=tk.VERTICAL, command=self.tree.yview)
         self.tree.configure(yscrollcommand=scrollbar.set)
@@ -125,17 +133,26 @@ class QuestionAdminWindow:
         profile_names = [p.name for p in profiles]
         self.profile_combo['values'] = profile_names
     
+    def _load_areas(self):
+        """Carga las áreas."""
+        areas = self.area_service.get_all_areas(active_only=False)
+        area_names = [a.name for a in areas]
+        self.area_combo['values'] = area_names
+    
     def _load_questions(self):
         """Carga las preguntas en la lista."""
         for item in self.tree.get_children():
             self.tree.delete(item)
         
         questions = self.question_service.get_all_questions(active_only=False)
+        areas = {a.id: a.name for a in self.area_service.get_all_areas(active_only=False)}
         
         for question in questions:
             text_short = question.text[:50] + '...' if len(question.text) > 50 else question.text
+            area_name = areas.get(question.area_id, 'N/A')
             self.tree.insert('', tk.END, values=(
                 question.id,
+                area_name,
                 text_short,
                 question.penalty_graduated,
                 question.penalty_not_graduated,
@@ -171,6 +188,12 @@ class QuestionAdminWindow:
             self.selected_id = item['values'][0]
             question = self.question_service.get_question(self.selected_id)
             if question:
+                # Cargar área
+                areas = self.area_service.get_all_areas(active_only=False)
+                area = next((a for a in areas if a.id == question.area_id), None)
+                if area:
+                    self.area_combo.set(area.name)
+                
                 self.text_entry.delete('1.0', tk.END)
                 self.text_entry.insert('1.0', question.text)
                 self.penalty_graduated_entry.delete(0, tk.END)
@@ -182,9 +205,21 @@ class QuestionAdminWindow:
     
     def _create(self):
         """Crea una nueva pregunta."""
+        if not self.area_combo.get():
+            messagebox.showwarning("Advertencia", "El área es obligatoria")
+            return
+        
         text = self.text_entry.get('1.0', tk.END).strip()
         if not text:
             messagebox.showwarning("Advertencia", "El texto es obligatorio")
+            return
+        
+        # Obtener área ID
+        area_name = self.area_combo.get()
+        areas = self.area_service.get_all_areas(active_only=False)
+        area = next((a for a in areas if a.name == area_name), None)
+        if not area:
+            messagebox.showerror("Error", "Área no encontrada")
             return
         
         try:
@@ -196,6 +231,7 @@ class QuestionAdminWindow:
         
         try:
             self.question_service.create_question(
+                area_id=area.id,
                 text=text,
                 penalty_graduated=penalty_graduated,
                 penalty_not_graduated=penalty_not_graduated,
@@ -213,9 +249,21 @@ class QuestionAdminWindow:
             messagebox.showwarning("Advertencia", "Seleccione una pregunta para editar")
             return
         
+        if not self.area_combo.get():
+            messagebox.showwarning("Advertencia", "El área es obligatoria")
+            return
+        
         text = self.text_entry.get('1.0', tk.END).strip()
         if not text:
             messagebox.showwarning("Advertencia", "El texto es obligatorio")
+            return
+        
+        # Obtener área ID
+        area_name = self.area_combo.get()
+        areas = self.area_service.get_all_areas(active_only=False)
+        area = next((a for a in areas if a.name == area_name), None)
+        if not area:
+            messagebox.showerror("Error", "Área no encontrada")
             return
         
         try:
@@ -228,6 +276,7 @@ class QuestionAdminWindow:
         try:
             self.question_service.update_question(
                 question_id=self.selected_id,
+                area_id=area.id,
                 text=text,
                 penalty_graduated=penalty_graduated,
                 penalty_not_graduated=penalty_not_graduated,
@@ -293,6 +342,7 @@ class QuestionAdminWindow:
     
     def _clear_form(self):
         """Limpia el formulario."""
+        self.area_combo.set('')
         self.text_entry.delete('1.0', tk.END)
         self.penalty_graduated_entry.delete(0, tk.END)
         self.penalty_graduated_entry.insert(0, "0.0")

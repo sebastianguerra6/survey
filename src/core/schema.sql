@@ -10,14 +10,26 @@ CREATE TABLE IF NOT EXISTS profiles (
     CHECK (active IN (0, 1))
 );
 
+-- Tabla de Áreas
+CREATE TABLE IF NOT EXISTS areas (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    description TEXT,
+    active INTEGER NOT NULL DEFAULT 1,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CHECK (active IN (0, 1))
+);
+
 -- Tabla de Preguntas
 CREATE TABLE IF NOT EXISTS questions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    area_id INTEGER NOT NULL,
     text TEXT NOT NULL,
     active INTEGER NOT NULL DEFAULT 1,
     penalty_graduated REAL NOT NULL DEFAULT 0.0,
     penalty_not_graduated REAL NOT NULL DEFAULT 0.0,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (area_id) REFERENCES areas(id),
     CHECK (active IN (0, 1)),
     CHECK (penalty_graduated >= 0),
     CHECK (penalty_not_graduated >= 0)
@@ -35,14 +47,29 @@ CREATE TABLE IF NOT EXISTS profile_question_defaults (
     CHECK (default_answer IN ('YES', 'NO', 'NA'))
 );
 
+-- Tabla de Casos
+CREATE TABLE IF NOT EXISTS cases (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    area_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT,
+    active INTEGER NOT NULL DEFAULT 1,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (area_id) REFERENCES areas(id),
+    UNIQUE(area_id, name),
+    CHECK (active IN (0, 1))
+);
+
 -- Tabla de Encuestas
 CREATE TABLE IF NOT EXISTS surveys (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     evaluator_profile TEXT NOT NULL,
-    analyst_name TEXT NOT NULL,
+    sid TEXT NOT NULL,
+    case_id INTEGER NOT NULL,
     is_graduated INTEGER NOT NULL,
     final_score REAL NOT NULL DEFAULT 0.0,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (case_id) REFERENCES cases(id),
     CHECK (is_graduated IN (0, 1)),
     CHECK (final_score >= 0 AND final_score <= 100)
 );
@@ -74,7 +101,11 @@ CREATE TABLE IF NOT EXISTS audit_log (
 );
 
 -- Índices para mejorar rendimiento
+CREATE INDEX IF NOT EXISTS idx_areas_active ON areas(active);
+CREATE INDEX IF NOT EXISTS idx_cases_active ON cases(active);
+CREATE INDEX IF NOT EXISTS idx_questions_area_active ON questions(area_id, active);
 CREATE INDEX IF NOT EXISTS idx_questions_active ON questions(active);
+CREATE INDEX IF NOT EXISTS idx_surveys_case ON surveys(case_id);
 CREATE INDEX IF NOT EXISTS idx_profile_defaults_profile ON profile_question_defaults(profile_id);
 CREATE INDEX IF NOT EXISTS idx_profile_defaults_question ON profile_question_defaults(question_id);
 CREATE INDEX IF NOT EXISTS idx_survey_responses_survey ON survey_responses(survey_id);

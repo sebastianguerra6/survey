@@ -5,6 +5,8 @@ from typing import Dict, Optional, List
 from src.services.survey_service import SurveyService
 from src.services.question_service import QuestionService
 from src.services.profile_service import ProfileService
+from src.services.area_service import AreaService
+from src.services.case_service import CaseService
 from src.models.survey import SurveyResponse
 from src.models.question import Question
 
@@ -21,6 +23,8 @@ class MainWindow:
         self.survey_service = SurveyService()
         self.question_service = QuestionService()
         self.profile_service = ProfileService()
+        self.area_service = AreaService()
+        self.case_service = CaseService()
         
         self.questions: List[Question] = []
         self.current_responses: Dict[int, SurveyResponse] = {}
@@ -40,8 +44,15 @@ class MainWindow:
         
         admin_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Administración", menu=admin_menu)
+        admin_menu.add_command(label="Áreas", command=self._open_area_admin)
+        admin_menu.add_command(label="Casos", command=self._open_case_admin)
         admin_menu.add_command(label="Preguntas", command=self._open_question_admin)
         admin_menu.add_command(label="Perfiles", command=self._open_profile_admin)
+        
+        # Menú de visualización
+        view_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Visualizar", menu=view_menu)
+        view_menu.add_command(label="Todas las Encuestas", command=self._open_surveys_view)
         
         # Frame principal
         main_frame = ttk.Frame(self.root, padding="10")
@@ -58,19 +69,30 @@ class MainWindow:
         self.profile_combo.bind('<<ComboboxSelected>>', self._on_profile_changed)
         self.profile_combo.bind('<FocusIn>', lambda e: self.profile_combo.config(state='readonly'))
         
-        # Nombre del analista
-        ttk.Label(top_frame, text="Nombre del Analista:").grid(row=0, column=2, sticky=tk.W, padx=5, pady=5)
-        self.analyst_entry = ttk.Entry(top_frame, width=30)
-        self.analyst_entry.grid(row=0, column=3, padx=5, pady=5)
+        # SID
+        ttk.Label(top_frame, text="SID:").grid(row=0, column=2, sticky=tk.W, padx=5, pady=5)
+        self.sid_entry = ttk.Entry(top_frame, width=30)
+        self.sid_entry.grid(row=0, column=3, padx=5, pady=5)
         
         # Es graduado
         ttk.Label(top_frame, text="Es Graduado:").grid(row=1, column=0, sticky=tk.W, padx=5, pady=5)
         self.is_graduated_var = tk.BooleanVar(value=False)
         ttk.Checkbutton(top_frame, text="Sí", variable=self.is_graduated_var).grid(row=1, column=1, padx=5, pady=5)
         
+        # Caso
+        ttk.Label(top_frame, text="Caso:").grid(row=1, column=2, sticky=tk.W, padx=5, pady=5)
+        self.case_combo = ttk.Combobox(top_frame, width=30, state="normal")
+        self.case_combo.grid(row=1, column=3, padx=5, pady=5)
+        
+        # Área
+        ttk.Label(top_frame, text="Área:").grid(row=2, column=0, sticky=tk.W, padx=5, pady=5)
+        self.area_combo = ttk.Combobox(top_frame, width=30, state="readonly")
+        self.area_combo.grid(row=2, column=1, padx=5, pady=5)
+        self.area_combo.bind('<<ComboboxSelected>>', self._on_area_changed)
+        
         # Botón cargar preguntas
         ttk.Button(top_frame, text="Cargar Preguntas", command=self._load_questions).grid(
-            row=1, column=2, columnspan=2, padx=5, pady=5
+            row=2, column=2, columnspan=2, padx=5, pady=5
         )
         
         # Puntaje actual
@@ -115,29 +137,43 @@ class MainWindow:
     def _load_data(self):
         """Carga datos iniciales."""
         try:
+            # Cargar perfiles
             profiles = self.profile_service.get_all_profiles(active_only=True)
             if profiles:
                 profile_names = [p.name for p in profiles]
-                # Cambiar a normal para establecer valores
                 self.profile_combo.config(state='normal')
                 self.profile_combo['values'] = profile_names
-                # Volver a readonly
                 self.profile_combo.config(state='readonly')
-                print(f"Perfiles cargados en combobox: {profile_names}")
+                print(f"Perfiles cargados: {profile_names}")
             else:
-                print("No se encontraron perfiles activos.")
                 self.profile_combo.config(state='normal')
                 self.profile_combo['values'] = []
                 self.profile_combo.config(state='readonly')
+            
+            # Cargar áreas
+            areas = self.area_service.get_all_areas(active_only=True)
+            if areas:
+                area_names = [a.name for a in areas]
+                self.area_combo.config(state='normal')
+                self.area_combo['values'] = area_names
+                self.area_combo.config(state='readonly')
+                print(f"Áreas cargadas: {area_names}")
+            else:
+                self.area_combo.config(state='normal')
+                self.area_combo['values'] = []
+                self.area_combo.config(state='readonly')
                 messagebox.showwarning(
                     "Advertencia",
-                    "No se encontraron perfiles activos.\n\nVaya a Administración → Perfiles para crear perfiles."
+                    "No se encontraron áreas activas.\n\nVaya a Administración → Áreas para crear áreas."
                 )
+            
+            # Los casos se cargarán cuando se seleccione un área
+            self._update_cases_for_area()
         except Exception as e:
-            print(f"Error al cargar perfiles: {str(e)}")
+            print(f"Error al cargar datos: {str(e)}")
             import traceback
             traceback.print_exc()
-            messagebox.showerror("Error", f"Error al cargar perfiles: {str(e)}")
+            messagebox.showerror("Error", f"Error al cargar datos: {str(e)}")
     
     def _on_profile_changed(self, event=None):
         """Maneja el cambio de perfil."""
@@ -145,10 +181,37 @@ class MainWindow:
             # Recargar preguntas para aplicar prefills
             self._load_questions()
     
+    def _on_area_changed(self, event=None):
+        """Maneja el cambio de área seleccionada."""
+        self._update_cases_for_area()
+    
+    def _update_cases_for_area(self):
+        """Actualiza la lista de casos según el área seleccionada."""
+        area_name = self.area_combo.get()
+        if area_name:
+            areas = self.area_service.get_all_areas(active_only=False)
+            area = next((a for a in areas if a.name == area_name), None)
+            if area:
+                cases = self.case_service.get_all_cases(active_only=True, area_id=area.id)
+                case_names = [c.name for c in cases]
+                self.case_combo.config(state='normal')
+                self.case_combo['values'] = case_names
+                print(f"Casos cargados para área {area_name}: {case_names}")
+            else:
+                self.case_combo.config(state='normal')
+                self.case_combo['values'] = []
+        else:
+            self.case_combo.config(state='normal')
+            self.case_combo['values'] = []
+    
     def _load_questions(self):
         """Carga las preguntas activas."""
         if not self.profile_combo.get():
             messagebox.showwarning("Advertencia", "Por favor seleccione un perfil")
+            return
+        
+        if not self.area_combo.get():
+            messagebox.showwarning("Advertencia", "Por favor seleccione un área")
             return
         
         # Obtener perfil ID
@@ -162,8 +225,19 @@ class MainWindow:
         
         profile_id = profile.id
         
-        # Cargar preguntas activas
-        self.questions = self.question_service.get_all_questions(active_only=True)
+        # Obtener área ID
+        area_name = self.area_combo.get()
+        areas = self.area_service.get_all_areas(active_only=False)
+        area = next((a for a in areas if a.name == area_name), None)
+        
+        if not area:
+            messagebox.showerror("Error", "Área no encontrada")
+            return
+        
+        area_id = area.id
+        
+        # Cargar preguntas activas del área seleccionada
+        self.questions = self.question_service.get_all_questions(active_only=True, area_id=area_id)
         
         if not self.questions:
             messagebox.showinfo("Información", "No hay preguntas activas")
@@ -307,8 +381,12 @@ class MainWindow:
             messagebox.showwarning("Advertencia", "Por favor seleccione un perfil")
             return
         
-        if not self.analyst_entry.get().strip():
-            messagebox.showwarning("Advertencia", "Por favor ingrese el nombre del analista")
+        if not self.sid_entry.get().strip():
+            messagebox.showwarning("Advertencia", "Por favor ingrese el SID")
+            return
+        
+        if not self.case_combo.get().strip():
+            messagebox.showwarning("Advertencia", "Por favor ingrese o seleccione un caso")
             return
         
         if not self.questions:
@@ -326,12 +404,25 @@ class MainWindow:
                 response.comment = comment
         
         try:
+            # Obtener área
+            area_name = self.area_combo.get()
+            areas = self.area_service.get_all_areas(active_only=False)
+            area = next((a for a in areas if a.name == area_name), None)
+            if not area:
+                messagebox.showerror("Error", "Área no encontrada")
+                return
+            
+            # Obtener o crear caso
+            case_name = self.case_combo.get().strip()
+            case_id = self.case_service.find_or_create_case(area_id=area.id, name=case_name)
+            
             # Crear respuestas finales
             responses = list(self.current_responses.values())
             
             survey_id = self.survey_service.create_survey(
                 evaluator_profile=self.profile_combo.get(),
-                analyst_name=self.analyst_entry.get().strip(),
+                sid=self.sid_entry.get().strip(),
+                case_id=case_id,
                 is_graduated=self.is_graduated_var.get(),
                 responses=responses
             )
@@ -339,7 +430,8 @@ class MainWindow:
             messagebox.showinfo("Éxito", f"Evaluación guardada correctamente.\nPuntaje Final: {self.current_score:.2f}")
             
             # Limpiar formulario
-            self.analyst_entry.delete(0, tk.END)
+            self.sid_entry.delete(0, tk.END)
+            self.case_combo.set('')
             self.is_graduated_var.set(False)
             for widget in self.questions_container.winfo_children():
                 widget.destroy()
@@ -373,13 +465,28 @@ class MainWindow:
             else:
                 messagebox.showerror("Error", "Error al exportar datos. Asegúrese de tener openpyxl instalado.")
     
+    def _open_area_admin(self):
+        """Abre ventana de administración de áreas."""
+        from src.ui.area_admin_window import AreaAdminWindow
+        AreaAdminWindow(self.root, self.area_service)
+    
+    def _open_case_admin(self):
+        """Abre ventana de administración de casos."""
+        from src.ui.case_admin_window import CaseAdminWindow
+        CaseAdminWindow(self.root, self.case_service, self.area_service)
+    
     def _open_question_admin(self):
         """Abre ventana de administración de preguntas."""
         from src.ui.question_admin_window import QuestionAdminWindow
-        QuestionAdminWindow(self.root, self.question_service, self.profile_service)
+        QuestionAdminWindow(self.root, self.question_service, self.profile_service, self.area_service)
     
     def _open_profile_admin(self):
         """Abre ventana de administración de perfiles."""
         from src.ui.profile_admin_window import ProfileAdminWindow
         ProfileAdminWindow(self.root, self.profile_service)
+    
+    def _open_surveys_view(self):
+        """Abre ventana de visualización de encuestas."""
+        from src.ui.surveys_view_window import SurveysViewWindow
+        SurveysViewWindow(self.root, self.survey_service, self.case_service, self.question_service)
 

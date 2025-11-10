@@ -9,7 +9,8 @@ class Survey:
     """Representa una encuesta de evaluación."""
     id: Optional[int]
     evaluator_profile: str
-    analyst_name: str
+    sid: str
+    case_id: int
     is_graduated: bool
     final_score: float = 0.0
     created_at: Optional[datetime] = None
@@ -19,8 +20,10 @@ class Survey:
         """Validaciones después de la inicialización."""
         if not self.evaluator_profile or not self.evaluator_profile.strip():
             raise ValueError("El perfil del evaluador es obligatorio")
-        if not self.analyst_name or not self.analyst_name.strip():
-            raise ValueError("El nombre del analista es obligatorio")
+        if not self.sid or not self.sid.strip():
+            raise ValueError("El SID es obligatorio")
+        if self.case_id is None:
+            raise ValueError("El caso es obligatorio")
         if self.final_score < 0 or self.final_score > 100:
             raise ValueError("El puntaje debe estar entre 0 y 100")
         if self.responses is None:
