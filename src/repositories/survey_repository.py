@@ -11,14 +11,16 @@ class SurveyRepository(BaseRepository):
     def create(self, survey: Survey) -> int:
         """Crea una nueva encuesta y retorna su ID."""
         cursor = self.db.execute(
-            """INSERT INTO surveys (evaluator_profile, sid, case_id, is_graduated, final_score)
-               VALUES (?, ?, ?, ?, ?)""",
+            """INSERT INTO surveys (evaluator_profile, sid, case_id, is_graduated, final_score, tier_id, tier_name)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
             (
                 survey.evaluator_profile,
                 survey.sid,
                 survey.case_id,
                 1 if survey.is_graduated else 0,
-                survey.final_score
+                survey.final_score,
+                survey.tier_id,
+                survey.tier_name
             )
         )
         survey_id = cursor.lastrowid
@@ -50,7 +52,7 @@ class SurveyRepository(BaseRepository):
     def find_by_id(self, survey_id: int) -> Optional[Survey]:
         """Busca una encuesta por ID."""
         row = self.db.fetch_one(
-            """SELECT id, evaluator_profile, sid, case_id, is_graduated, final_score, created_at
+            """SELECT id, evaluator_profile, sid, case_id, is_graduated, final_score, tier_id, tier_name, created_at
                FROM surveys WHERE id = ?""",
             (survey_id,)
         )
@@ -64,6 +66,8 @@ class SurveyRepository(BaseRepository):
                 case_id=row['case_id'],
                 is_graduated=bool(row['is_graduated']),
                 final_score=row['final_score'],
+                tier_id=row['tier_id'],
+                tier_name=row['tier_name'],
                 created_at=datetime.fromisoformat(row['created_at']) if row['created_at'] else None,
                 responses=responses
             )
@@ -91,7 +95,7 @@ class SurveyRepository(BaseRepository):
     def find_all(self) -> List[Survey]:
         """Obtiene todas las encuestas."""
         rows = self.db.fetch_all(
-            """SELECT id, evaluator_profile, sid, case_id, is_graduated, final_score, created_at
+            """SELECT id, evaluator_profile, sid, case_id, is_graduated, final_score, tier_id, tier_name, created_at
                FROM surveys ORDER BY created_at DESC"""
         )
         surveys = []
@@ -104,6 +108,8 @@ class SurveyRepository(BaseRepository):
                 case_id=row['case_id'],
                 is_graduated=bool(row['is_graduated']),
                 final_score=row['final_score'],
+                tier_id=row['tier_id'],
+                tier_name=row['tier_name'],
                 created_at=datetime.fromisoformat(row['created_at']) if row['created_at'] else None,
                 responses=responses
             ))
@@ -132,7 +138,8 @@ class SurveyRepository(BaseRepository):
                     'answer': response.answer,
                     'comment': response.comment or '',
                     'penalty_applied': response.penalty_applied,
-                    'final_score': survey.final_score
+                    'final_score': survey.final_score,
+                    'tier_name': survey.tier_name or ''
                 })
         return csv_data
 

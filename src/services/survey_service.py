@@ -6,6 +6,7 @@ from src.repositories.survey_repository import SurveyRepository
 from src.repositories.question_repository import QuestionRepository
 from src.repositories.profile_repository import ProfileRepository
 from src.repositories.case_repository import CaseRepository
+from src.services.tier_service import TierService
 
 
 class SurveyService:
@@ -17,6 +18,7 @@ class SurveyService:
         self.question_repo = QuestionRepository()
         self.profile_repo = ProfileRepository()
         self.case_repo = CaseRepository()
+        self.tier_service = TierService()
     
     def calculate_score(self, responses: List[SurveyResponse], is_graduated: bool, 
                        questions_map: dict) -> float:
@@ -58,6 +60,15 @@ class SurveyService:
         # Calcular puntaje
         final_score = self.calculate_score(responses, is_graduated, questions_map)
         temp_survey.final_score = final_score
+        
+        # Determinar tier
+        tier = None
+        case = self.case_repo.find_by_id(case_id)
+        if case:
+            tier = self.tier_service.get_tier_for_score(case.area_id, final_score)
+        if tier:
+            temp_survey.tier_id = tier.id
+            temp_survey.tier_name = tier.name
         
         # Guardar encuesta
         survey_id = self.survey_repo.create(temp_survey)

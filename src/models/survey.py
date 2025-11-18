@@ -13,6 +13,8 @@ class Survey:
     case_id: int
     is_graduated: bool
     final_score: float = 0.0
+    tier_id: Optional[int] = None
+    tier_name: Optional[str] = None
     created_at: Optional[datetime] = None
     responses: List['SurveyResponse'] = None
     

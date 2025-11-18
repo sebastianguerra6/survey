@@ -10,6 +10,7 @@ if str(src_path) not in sys.path:
     sys.path.insert(0, str(src_path))
 
 from src.core.init_db import ensure_database_initialized
+from src.core.seeds import ensure_seed_data
 from src.ui.main_window import MainWindow
 
 
@@ -17,6 +18,7 @@ def main():
     """Función principal."""
     # Inicializar base de datos
     ensure_database_initialized()
+    ensure_seed_data()
     
     # Crear interfaz
     root = tk.Tk()

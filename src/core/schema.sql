@@ -47,7 +47,6 @@ CREATE TABLE IF NOT EXISTS profile_question_defaults (
     CHECK (default_answer IN ('YES', 'NO', 'NA'))
 );
 
--- Tabla de Casos
 CREATE TABLE IF NOT EXISTS cases (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     area_id INTEGER NOT NULL,
@@ -60,6 +59,23 @@ CREATE TABLE IF NOT EXISTS cases (
     CHECK (active IN (0, 1))
 );
 
+-- Tabla de Tiers por Área
+CREATE TABLE IF NOT EXISTS tiers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    area_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    min_score REAL NOT NULL,
+    max_score REAL NOT NULL,
+    description TEXT,
+    color TEXT,
+    active INTEGER NOT NULL DEFAULT 1,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (area_id) REFERENCES areas(id) ON DELETE CASCADE,
+    UNIQUE(area_id, name),
+    CHECK (min_score >= 0 AND max_score <= 100 AND min_score <= max_score),
+    CHECK (active IN (0, 1))
+);
+
 -- Tabla de Encuestas
 CREATE TABLE IF NOT EXISTS surveys (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -68,8 +84,11 @@ CREATE TABLE IF NOT EXISTS surveys (
     case_id INTEGER NOT NULL,
     is_graduated INTEGER NOT NULL,
     final_score REAL NOT NULL DEFAULT 0.0,
+    tier_id INTEGER,
+    tier_name TEXT,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (case_id) REFERENCES cases(id),
+    FOREIGN KEY (tier_id) REFERENCES tiers(id),
     CHECK (is_graduated IN (0, 1)),
     CHECK (final_score >= 0 AND final_score <= 100)
 );
@@ -103,6 +122,8 @@ CREATE TABLE IF NOT EXISTS audit_log (
 -- Índices para mejorar rendimiento
 CREATE INDEX IF NOT EXISTS idx_areas_active ON areas(active);
 CREATE INDEX IF NOT EXISTS idx_cases_active ON cases(active);
+CREATE INDEX IF NOT EXISTS idx_tiers_area ON tiers(area_id);
+CREATE INDEX IF NOT EXISTS idx_tiers_area_score ON tiers(area_id, min_score, max_score);
 CREATE INDEX IF NOT EXISTS idx_questions_area_active ON questions(area_id, active);
 CREATE INDEX IF NOT EXISTS idx_questions_active ON questions(active);
 CREATE INDEX IF NOT EXISTS idx_surveys_case ON surveys(case_id);

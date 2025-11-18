@@ -6,6 +6,14 @@ from src.repositories.question_repository import QuestionRepository
 from src.services.profile_service import ProfileService
 from src.services.area_service import AreaService
 from src.services.question_service import QuestionService
+from src.services.tier_service import TierService
+
+DEFAULT_TIER_CONFIG = [
+    ("Superior", 90.0, 100.0, "Desempeño sobresaliente", "#166534"),
+    ("Alto", 80.0, 89.99, "Cumple ampliamente las expectativas", "#15803d"),
+    ("Medio", 65.0, 79.99, "Cumple con oportunidades de mejora", "#ca8a04"),
+    ("En Desarrollo", 0.0, 64.99, "Se requiere acompañamiento", "#b91c1c"),
+]
 
 
 def seed_database():
@@ -13,6 +21,7 @@ def seed_database():
     profile_service = ProfileService()
     area_service = AreaService()
     question_service = QuestionService()
+    tier_service = TierService()
     
     # Crear áreas por defecto
     areas_data = [
@@ -345,11 +354,49 @@ def seed_database():
                 except Exception as e:
                     print(f"Error al configurar prefill: {str(e)}")
     
+    # Configurar tiers por defecto para cada área
+    ensure_default_tiers_for_all_areas(tier_service=tier_service, area_service=area_service)
+    
     print("\nDatos de ejemplo insertados correctamente.")
+
+
+def has_seed_data() -> bool:
+    """Verifica si ya existen preguntas (indicador de datos de ejemplo)."""
+    question_service = QuestionService()
+    try:
+        existing_questions = question_service.get_all_questions(active_only=False)
+        return len(existing_questions) > 0
+    except Exception as exc:
+        print(f"Error al verificar datos de ejemplo: {exc}")
+        return False
+
+
+def ensure_seed_data():
+    """Se asegura de que los datos de ejemplo estén cargados."""
+    if has_seed_data():
+        print("Los datos de ejemplo ya existen. Omitiendo seeding.")
+        ensure_default_tiers_for_all_areas()
+        return False
+    
+    print("Insertando datos de ejemplo...")
+    seed_database()
+    ensure_default_tiers_for_all_areas()
+    return True
+
+
+def ensure_default_tiers_for_all_areas(tier_service: TierService = None, area_service: AreaService = None):
+    """Garantiza que cada área tenga la configuración base de tiers."""
+    tier_service = tier_service or TierService()
+    area_service = area_service or AreaService()
+    areas = area_service.get_all_areas(active_only=False)
+    if not areas:
+        return
+    for area in areas:
+        tier_service.ensure_default_tiers(area.id, DEFAULT_TIER_CONFIG)
 
 
 if __name__ == '__main__':
     from src.core.init_db import ensure_database_initialized
     ensure_database_initialized()
-    seed_database()
+    ensure_seed_data()
 

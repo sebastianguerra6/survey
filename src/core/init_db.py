@@ -74,6 +74,22 @@ def ensure_database_initialized():
                 from src.core.migrate_add_area_to_cases import migrate_add_area_to_cases
                 migrate_add_area_to_cases()
         
+        # Migración 4: agregar sistema de tiers
+        tiers_table = db.fetch_one(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='tiers'"
+        )
+        surveys_columns = db.fetch_all("PRAGMA table_info(surveys)")
+        survey_column_names = [col['name'] for col in surveys_columns]
+        needs_tiers_migration = (
+            tiers_table is None
+            or 'tier_id' not in survey_column_names
+            or 'tier_name' not in survey_column_names
+        )
+        if needs_tiers_migration:
+            print("Aplicando migración para agregar sistema de tiers...")
+            from src.core.migrate_add_tiers import migrate_add_tiers
+            migrate_add_tiers()
+        
         print("Base de datos verificada.")
 
 

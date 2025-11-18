@@ -37,7 +37,7 @@ class SurveysViewWindow:
         main_paned.add(left_frame, weight=1)
         
         # Tabla de encuestas
-        columns = ('ID', 'Fecha', 'Perfil', 'SID', 'Caso', 'Graduado', 'Puntaje')
+        columns = ('ID', 'Fecha', 'Perfil', 'SID', 'Caso', 'Graduado', 'Puntaje', 'Tier')
         self.surveys_tree = ttk.Treeview(left_frame, columns=columns, show='headings', height=20)
         
         # Configurar columnas
@@ -48,6 +48,7 @@ class SurveysViewWindow:
         self.surveys_tree.heading('Caso', text='Caso')
         self.surveys_tree.heading('Graduado', text='Graduado')
         self.surveys_tree.heading('Puntaje', text='Puntaje')
+        self.surveys_tree.heading('Tier', text='Tier')
         
         self.surveys_tree.column('ID', width=50)
         self.surveys_tree.column('Fecha', width=150)
@@ -56,6 +57,7 @@ class SurveysViewWindow:
         self.surveys_tree.column('Caso', width=150)
         self.surveys_tree.column('Graduado', width=80)
         self.surveys_tree.column('Puntaje', width=80)
+        self.surveys_tree.column('Tier', width=120)
         
         scrollbar_surveys = ttk.Scrollbar(left_frame, orient=tk.VERTICAL, command=self.surveys_tree.yview)
         self.surveys_tree.configure(yscrollcommand=scrollbar_surveys.set)
@@ -144,7 +146,8 @@ class SurveysViewWindow:
                     survey.sid,
                     case_name,
                     graduado_str,
-                    f"{survey.final_score:.2f}"
+                    f"{survey.final_score:.2f}",
+                    survey.tier_name or 'Sin tier'
                 ), tags=(tag,))
             
         except Exception as e:
@@ -189,12 +192,14 @@ class SurveysViewWindow:
         
         fecha_str = survey.created_at.strftime('%Y-%m-%d %H:%M:%S') if survey.created_at else 'N/A'
         
+        tier_label = survey.tier_name or 'No definido'
         info = f"""ID de Encuesta: {survey.id}
 Perfil del Evaluador: {survey.evaluator_profile}
 SID: {survey.sid}
 Caso: {case_name}
 Es Graduado: {'Sí' if survey.is_graduated else 'No'}
 Puntaje Final: {survey.final_score:.2f} / 100.00
+Tier Asignado: {tier_label}
 Fecha de Creación: {fecha_str}
 Total de Respuestas: {len(survey.responses)}
 """
