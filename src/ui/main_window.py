@@ -1,7 +1,7 @@
 """Ventana principal de evaluación."""
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
-from typing import Dict, List, Optional
+from typing import Callable, Dict, List, Optional
 from src.services.survey_service import SurveyService
 from src.services.question_service import QuestionService
 from src.services.profile_service import ProfileService
@@ -18,7 +18,8 @@ class MainWindow:
     def __init__(self, root: tk.Tk):
         """Inicializa la ventana principal."""
         self.root = root
-        self.root.title("Sistema de Evaluación de Analistas")
+        self.base_title = "Sistema de Evaluación de Analistas"
+        self.root.title(self.base_title)
         self.root.geometry("1100x780")
         
         self.colors = {
@@ -48,6 +49,7 @@ class MainWindow:
         self.current_score: float = 100.0
         self.current_tier = None
         self.selected_area_id: Optional[int] = None
+        self.active_module_frame: Optional[tk.Widget] = None
         
         self._setup_ui()
         # Cargar datos después de que la UI esté completamente inicializada
@@ -120,13 +122,13 @@ class MainWindow:
         style.configure("Main.TCombobox", padding=6, fieldbackground="#ffffff")
         style.configure("Main.TCheckbutton", background=self.colors["card"], foreground="#0f172a")
         
-        style.configure("Accent.TButton", font=("Segoe UI", 10, "bold"), padding=8)
+        style.configure("Accent.TButton", font=("Segoe UI", 10, "bold"), padding=8, foreground="#0f172a")
         style.map(
             "Accent.TButton",
             background=[("disabled", "#94a3b8"), ("pressed", self.colors["accent_dark"]), ("active", self.colors["accent_dark"]), ("!disabled", self.colors["accent"])],
-            foreground=[("disabled", "#e2e8f0"), ("!disabled", "#ffffff")]
+            foreground=[("disabled", "#e2e8f0"), ("!disabled", "#0f172a")]
         )
-        style.configure("Secondary.TButton", padding=8, font=("Segoe UI", 10))
+        style.configure("Secondary.TButton", padding=8, font=("Segoe UI", 10), foreground="#0f172a")
         style.map(
             "Secondary.TButton",
             background=[("pressed", "#cbd5f5"), ("active", "#dbeafe"), ("!disabled", "#e2e8f0")],
@@ -173,7 +175,18 @@ class MainWindow:
     
     def _setup_ui(self):
         """Configura la interfaz de usuario."""
-        # Menú
+        self._build_menu()
+        
+        self.content_container = ttk.Frame(self.root, padding="0 0 0 0", style="Main.TFrame")
+        self.content_container.pack(fill=tk.BOTH, expand=True)
+        
+        self.main_dashboard = ttk.Frame(self.content_container, padding="20 20 20 15", style="Main.TFrame")
+        self.main_dashboard.pack(fill=tk.BOTH, expand=True)
+        
+        self._build_dashboard()
+
+    def _build_menu(self):
+        """Crea el menú superior con las opciones de administración."""
         menubar = tk.Menu(self.root)
         self.root.config(menu=menubar)
         
@@ -185,17 +198,14 @@ class MainWindow:
         admin_menu.add_command(label="Perfiles", command=self._open_profile_admin)
         admin_menu.add_command(label="Tiers", command=self._open_tier_admin)
         
-        # Menú de visualización
         view_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Visualizar", menu=view_menu)
         view_menu.add_command(label="Todas las Encuestas", command=self._open_surveys_view)
-        
-        # Frame principal
-        main_frame = ttk.Frame(self.root, padding="20 20 20 15", style="Main.TFrame")
-        main_frame.pack(fill=tk.BOTH, expand=True)
-        
+
+    def _build_dashboard(self):
+        """Construye el panel principal de evaluación dentro del contenedor."""
         # Encabezado
-        header_frame = ttk.Frame(main_frame, style="Header.TFrame", padding="0 5 0 10")
+        header_frame = ttk.Frame(self.main_dashboard, style="Header.TFrame", padding="0 5 0 10")
         header_frame.pack(fill=tk.X, pady=(0, 10))
         ttk.Label(header_frame, text="Panel de Evaluación", style="HeaderTitle.TLabel").pack(anchor=tk.W)
         ttk.Label(
@@ -204,43 +214,37 @@ class MainWindow:
             style="HeaderSubtitle.TLabel"
         ).pack(anchor=tk.W, pady=(2, 0))
         
-        ttk.Separator(main_frame).pack(fill=tk.X, pady=(5, 15))
+        ttk.Separator(self.main_dashboard).pack(fill=tk.X, pady=(5, 15))
         
         # Frame superior - Información de evaluación
-        top_frame = ttk.LabelFrame(main_frame, text="Información de Evaluación", padding="15", style="Card.TLabelframe")
+        top_frame = ttk.LabelFrame(self.main_dashboard, text="Información de Evaluación", padding="15", style="Card.TLabelframe")
         top_frame.pack(fill=tk.X, pady=(0, 10))
         for col in range(4):
             top_frame.columnconfigure(col, weight=1)
         
-        # Perfil del evaluador
         ttk.Label(top_frame, text="Perfil del Evaluador:", style="LabelCard.TLabel").grid(row=0, column=0, sticky=tk.W, padx=5, pady=5)
         self.profile_combo = ttk.Combobox(top_frame, width=30, state="normal", style="Main.TCombobox")
         self.profile_combo.grid(row=0, column=1, padx=5, pady=5, sticky=tk.EW)
         self.profile_combo.bind('<<ComboboxSelected>>', self._on_profile_changed)
         self.profile_combo.bind('<FocusIn>', lambda e: self.profile_combo.config(state='readonly'))
         
-        # SID
         ttk.Label(top_frame, text="SID:", style="LabelCard.TLabel").grid(row=0, column=2, sticky=tk.W, padx=5, pady=5)
         self.sid_entry = ttk.Entry(top_frame, width=30, style="Main.TEntry")
         self.sid_entry.grid(row=0, column=3, padx=5, pady=5, sticky=tk.EW)
         
-        # Es graduado
         ttk.Label(top_frame, text="Es Graduado:", style="LabelCard.TLabel").grid(row=1, column=0, sticky=tk.W, padx=5, pady=5)
         self.is_graduated_var = tk.BooleanVar(value=False)
         ttk.Checkbutton(top_frame, text="Sí", variable=self.is_graduated_var, style="Main.TCheckbutton").grid(row=1, column=1, padx=5, pady=5, sticky=tk.W)
         
-        # Caso
         ttk.Label(top_frame, text="Caso:", style="LabelCard.TLabel").grid(row=1, column=2, sticky=tk.W, padx=5, pady=5)
         self.case_combo = ttk.Combobox(top_frame, width=30, state="normal", style="Main.TCombobox")
         self.case_combo.grid(row=1, column=3, padx=5, pady=5, sticky=tk.EW)
         
-        # Área
         ttk.Label(top_frame, text="Área:", style="LabelCard.TLabel").grid(row=2, column=0, sticky=tk.W, padx=5, pady=5)
         self.area_combo = ttk.Combobox(top_frame, width=30, state="readonly", style="Main.TCombobox")
         self.area_combo.grid(row=2, column=1, padx=5, pady=5, sticky=tk.EW)
         self.area_combo.bind('<<ComboboxSelected>>', self._on_area_changed)
         
-        # Botón cargar preguntas
         ttk.Button(top_frame, text="Cargar Preguntas", command=self._load_questions, style="Accent.TButton").grid(
             row=2, column=2, columnspan=2, padx=5, pady=5, sticky=tk.EW
         )
@@ -252,7 +256,7 @@ class MainWindow:
         ).grid(row=3, column=0, columnspan=4, sticky=tk.W, padx=5, pady=(8, 0))
         
         # Puntaje actual
-        score_frame = ttk.Frame(main_frame, style="Card.TFrame", padding="15 12")
+        score_frame = ttk.Frame(self.main_dashboard, style="Card.TFrame", padding="15 12")
         score_frame.pack(fill=tk.X, pady=(0, 10))
         
         ttk.Label(score_frame, text="Resumen del Puntaje", style="MutedCard.TLabel").pack(anchor=tk.W)
@@ -283,13 +287,12 @@ class MainWindow:
         )
         self.tier_label.pack(anchor=tk.W, pady=(6, 0))
         
-        ttk.Separator(main_frame).pack(fill=tk.X, pady=(0, 15))
+        ttk.Separator(self.main_dashboard).pack(fill=tk.X, pady=(0, 15))
         
         # Frame de preguntas con scroll
-        questions_frame = ttk.LabelFrame(main_frame, text="Preguntas", padding="10", style="Card.TLabelframe")
+        questions_frame = ttk.LabelFrame(self.main_dashboard, text="Preguntas", padding="10", style="Card.TLabelframe")
         questions_frame.pack(fill=tk.BOTH, expand=True)
         
-        # Canvas y scrollbar
         canvas = tk.Canvas(questions_frame, highlightthickness=0, bg=self.colors["card"])
         scrollbar = ttk.Scrollbar(questions_frame, orient="vertical", command=canvas.yview)
         self.questions_container = ttk.Frame(canvas, style="QuestionContainer.TFrame")
@@ -305,13 +308,30 @@ class MainWindow:
         canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 5))
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         
-        # Frame de botones
-        button_frame = ttk.Frame(main_frame, style="Main.TFrame")
+        button_frame = ttk.Frame(self.main_dashboard, style="Main.TFrame")
         button_frame.pack(fill=tk.X, pady=10)
         
         ttk.Button(button_frame, text="Guardar Evaluación", command=self._save_survey, style="Accent.TButton").pack(side=tk.LEFT, padx=5)
         ttk.Button(button_frame, text="Exportar CSV", command=self._export_csv, style="Secondary.TButton").pack(side=tk.LEFT, padx=5)
         ttk.Button(button_frame, text="Exportar Excel", command=self._export_excel, style="Secondary.TButton").pack(side=tk.LEFT, padx=5)
+    
+    def _show_dashboard(self):
+        """Muestra nuevamente el panel principal y cierra cualquier módulo activo."""
+        if self.active_module_frame:
+            self.active_module_frame.destroy()
+            self.active_module_frame = None
+        if not self.main_dashboard.winfo_manager():
+            self.main_dashboard.pack(fill=tk.BOTH, expand=True)
+        self.root.title(self.base_title)
+    
+    def _display_module(self, builder: Callable[[tk.Widget], tk.Widget], title_suffix: str):
+        """Oculta el dashboard y renderiza un módulo dentro del contenedor."""
+        if self.active_module_frame:
+            self.active_module_frame.destroy()
+        self.main_dashboard.pack_forget()
+        self.active_module_frame = builder(self.content_container)
+        self.active_module_frame.pack(fill=tk.BOTH, expand=True)
+        self.root.title(f"{self.base_title} - {title_suffix}")
     
     def _load_data(self):
         """Carga datos iniciales."""
@@ -716,30 +736,68 @@ class MainWindow:
     def _open_area_admin(self):
         """Abre ventana de administración de áreas."""
         from src.ui.area_admin_window import AreaAdminWindow
-        AreaAdminWindow(self.root, self.area_service)
+        self._display_module(
+            lambda parent: AreaAdminWindow(parent, self.area_service, self.colors, self._show_dashboard),
+            "Administración de Áreas"
+        )
     
     def _open_case_admin(self):
         """Abre ventana de administración de casos."""
         from src.ui.case_admin_window import CaseAdminWindow
-        CaseAdminWindow(self.root, self.case_service, self.area_service)
+        self._display_module(
+            lambda parent: CaseAdminWindow(parent, self.case_service, self.area_service, self.colors, self._show_dashboard),
+            "Administración de Casos"
+        )
     
     def _open_question_admin(self):
         """Abre ventana de administración de preguntas."""
         from src.ui.question_admin_window import QuestionAdminWindow
-        QuestionAdminWindow(self.root, self.question_service, self.profile_service, self.area_service)
+        self._display_module(
+            lambda parent: QuestionAdminWindow(
+                parent,
+                self.question_service,
+                self.profile_service,
+                self.area_service,
+                self.colors,
+                self._show_dashboard
+            ),
+            "Administración de Preguntas"
+        )
     
     def _open_profile_admin(self):
         """Abre ventana de administración de perfiles."""
         from src.ui.profile_admin_window import ProfileAdminWindow
-        ProfileAdminWindow(self.root, self.profile_service)
+        self._display_module(
+            lambda parent: ProfileAdminWindow(parent, self.profile_service, self.colors, self._show_dashboard),
+            "Administración de Perfiles"
+        )
     
     def _open_surveys_view(self):
         """Abre ventana de visualización de encuestas."""
         from src.ui.surveys_view_window import SurveysViewWindow
-        SurveysViewWindow(self.root, self.survey_service, self.case_service, self.question_service)
+        self._display_module(
+            lambda parent: SurveysViewWindow(
+                parent,
+                self.survey_service,
+                self.case_service,
+                self.question_service,
+                self.colors,
+                self._show_dashboard
+            ),
+            "Visualizador de Encuestas"
+        )
     
     def _open_tier_admin(self):
         """Abre ventana de administración de tiers."""
         from src.ui.tier_admin_window import TierAdminWindow
-        TierAdminWindow(self.root, self.tier_service, self.area_service)
+        self._display_module(
+            lambda parent: TierAdminWindow(
+                parent,
+                self.tier_service,
+                self.area_service,
+                self.colors,
+                self._show_dashboard
+            ),
+            "Administración de Tiers"
+        )
 

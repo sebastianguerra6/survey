@@ -1,21 +1,27 @@
 """Ventana de administración de Tiers."""
 import tkinter as tk
 from tkinter import ttk, messagebox, colorchooser
-from typing import Optional
+from typing import Callable, Dict, Optional
 from src.services.tier_service import TierService
 from src.services.area_service import AreaService
 
 
-class TierAdminWindow:
-    """Ventana para crear y administrar tiers por área."""
+class TierAdminWindow(ttk.Frame):
+    """Vista incrustada para crear y administrar tiers por área."""
     
-    def __init__(self, parent, tier_service: TierService, area_service: AreaService):
+    def __init__(
+        self,
+        parent,
+        tier_service: TierService,
+        area_service: AreaService,
+        colors: Dict[str, str],
+        on_back: Callable[[], None],
+    ):
+        super().__init__(parent, padding="20 20 20 15", style="Main.TFrame")
         self.tier_service = tier_service
         self.area_service = area_service
-        
-        self.window = tk.Toplevel(parent)
-        self.window.title("Administración de Tiers")
-        self.window.geometry("900x600")
+        self.colors = colors
+        self.on_back = on_back
         
         self.selected_tier_id: Optional[int] = None
         self.area_map = {}
@@ -25,59 +31,79 @@ class TierAdminWindow:
     
     def _setup_ui(self):
         """Configura la interfaz."""
-        container = ttk.Frame(self.window, padding=10)
+        header = ttk.Frame(self, style="Header.TFrame")
+        header.pack(fill=tk.X, pady=(0, 15))
+        
+        ttk.Button(header, text="< Volver al Panel", command=self.on_back, style="Secondary.TButton").pack(side=tk.LEFT)
+        ttk.Label(header, text="Administración de Tiers", style="HeaderTitle.TLabel").pack(anchor=tk.W, pady=(8, 0))
+        ttk.Label(
+            header,
+            text="Define los rangos de puntaje y colores por área para clasificar resultados.",
+            style="HeaderSubtitle.TLabel"
+        ).pack(anchor=tk.W)
+        
+        container = ttk.Frame(self, style="Main.TFrame")
         container.pack(fill=tk.BOTH, expand=True)
         
-        # Selección de área
-        area_frame = ttk.LabelFrame(container, text="Área", padding=10)
+        area_frame = ttk.LabelFrame(container, text="Área", padding="15", style="Card.TLabelframe")
         area_frame.pack(fill=tk.X, pady=(0, 10))
         
-        ttk.Label(area_frame, text="Área:").grid(row=0, column=0, sticky=tk.W, padx=5, pady=5)
+        ttk.Label(area_frame, text="Área:", style="LabelCard.TLabel").grid(row=0, column=0, sticky=tk.W, padx=5, pady=5)
         self.area_var = tk.StringVar()
-        self.area_combo = ttk.Combobox(area_frame, textvariable=self.area_var, state="readonly", width=40)
-        self.area_combo.grid(row=0, column=1, padx=5, pady=5)
+        self.area_combo = ttk.Combobox(area_frame, textvariable=self.area_var, state="readonly", width=40, style="Main.TCombobox")
+        self.area_combo.grid(row=0, column=1, padx=5, pady=5, sticky=tk.EW)
         self.area_combo.bind('<<ComboboxSelected>>', lambda e: self._load_tiers())
+        area_frame.columnconfigure(1, weight=1)
         
-        # Formulario
-        form_frame = ttk.LabelFrame(container, text="Nuevo / Editar Tier", padding=10)
+        form_frame = ttk.LabelFrame(container, text="Nuevo / Editar Tier", padding="15", style="Card.TLabelframe")
         form_frame.pack(fill=tk.X, pady=(0, 10))
+        form_frame.columnconfigure(1, weight=1)
         
-        ttk.Label(form_frame, text="Nombre del Tier:").grid(row=0, column=0, sticky=tk.W, padx=5, pady=5)
-        self.name_entry = ttk.Entry(form_frame, width=30)
-        self.name_entry.grid(row=0, column=1, padx=5, pady=5, sticky=tk.W)
+        ttk.Label(form_frame, text="Nombre del Tier:", style="LabelCard.TLabel").grid(row=0, column=0, sticky=tk.W, padx=5, pady=5)
+        self.name_entry = ttk.Entry(form_frame, width=30, style="Main.TEntry")
+        self.name_entry.grid(row=0, column=1, padx=5, pady=5, sticky=tk.EW)
         
-        ttk.Label(form_frame, text="Rango de Puntaje (min-máx):").grid(row=1, column=0, sticky=tk.W, padx=5, pady=5)
-        range_frame = ttk.Frame(form_frame)
+        ttk.Label(form_frame, text="Rango de Puntaje (min-máx):", style="LabelCard.TLabel").grid(row=1, column=0, sticky=tk.W, padx=5, pady=5)
+        range_frame = ttk.Frame(form_frame, style="Main.TFrame")
         range_frame.grid(row=1, column=1, padx=5, pady=5, sticky=tk.W)
-        self.min_entry = ttk.Entry(range_frame, width=10)
+        self.min_entry = ttk.Entry(range_frame, width=10, style="Main.TEntry")
         self.min_entry.pack(side=tk.LEFT)
         ttk.Label(range_frame, text=" - ").pack(side=tk.LEFT)
-        self.max_entry = ttk.Entry(range_frame, width=10)
+        self.max_entry = ttk.Entry(range_frame, width=10, style="Main.TEntry")
         self.max_entry.pack(side=tk.LEFT)
         
-        ttk.Label(form_frame, text="Descripción:").grid(row=2, column=0, sticky=tk.W, padx=5, pady=5)
-        self.description_text = tk.Text(form_frame, width=40, height=3)
-        self.description_text.grid(row=2, column=1, padx=5, pady=5, sticky=tk.W)
+        ttk.Label(form_frame, text="Descripción:", style="LabelCard.TLabel").grid(row=2, column=0, sticky=tk.NW, padx=5, pady=5)
+        self.description_text = tk.Text(form_frame, width=40, height=3, wrap=tk.WORD)
+        self.description_text.grid(row=2, column=1, padx=5, pady=5, sticky=tk.EW)
+        self.description_text.configure(
+            bg="#f8fafc",
+            relief="flat",
+            highlightthickness=1,
+            highlightbackground=self.colors["border"],
+            highlightcolor=self.colors["accent"],
+            font=("Segoe UI", 10),
+            padx=8,
+            pady=6
+        )
         
-        ttk.Label(form_frame, text="Color (opcional):").grid(row=3, column=0, sticky=tk.W, padx=5, pady=5)
-        color_frame = ttk.Frame(form_frame)
+        ttk.Label(form_frame, text="Color (opcional):", style="LabelCard.TLabel").grid(row=3, column=0, sticky=tk.W, padx=5, pady=5)
+        color_frame = ttk.Frame(form_frame, style="Main.TFrame")
         color_frame.grid(row=3, column=1, padx=5, pady=5, sticky=tk.W)
-        self.color_entry = ttk.Entry(color_frame, width=12)
+        self.color_entry = ttk.Entry(color_frame, width=12, style="Main.TEntry")
         self.color_entry.pack(side=tk.LEFT)
-        ttk.Button(color_frame, text="Seleccionar", command=self._pick_color).pack(side=tk.LEFT, padx=5)
+        ttk.Button(color_frame, text="Seleccionar", command=self._pick_color, style="Secondary.TButton").pack(side=tk.LEFT, padx=5)
         
         self.active_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(form_frame, text="Activo", variable=self.active_var).grid(row=0, column=2, padx=5, pady=5)
+        ttk.Checkbutton(form_frame, text="Activo", variable=self.active_var, style="Main.TCheckbutton").grid(row=0, column=2, padx=5, pady=5)
         
-        button_frame = ttk.Frame(form_frame)
+        button_frame = ttk.Frame(form_frame, style="Main.TFrame")
         button_frame.grid(row=4, column=0, columnspan=3, pady=10)
-        ttk.Button(button_frame, text="Crear", command=self._create).pack(side=tk.LEFT, padx=5)
-        ttk.Button(button_frame, text="Actualizar", command=self._update).pack(side=tk.LEFT, padx=5)
-        ttk.Button(button_frame, text="Eliminar", command=self._delete).pack(side=tk.LEFT, padx=5)
-        ttk.Button(button_frame, text="Limpiar", command=self._clear_form).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Crear", command=self._create, style="Accent.TButton").pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Actualizar", command=self._update, style="Secondary.TButton").pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Eliminar", command=self._delete, style="Secondary.TButton").pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Limpiar", command=self._clear_form, style="Secondary.TButton").pack(side=tk.LEFT, padx=5)
         
-        # Lista de tiers
-        list_frame = ttk.LabelFrame(container, text="Tiers configurados", padding=10)
+        list_frame = ttk.LabelFrame(container, text="Tiers configurados", padding="15", style="Card.TLabelframe")
         list_frame.pack(fill=tk.BOTH, expand=True)
         
         columns = ("id", "nombre", "rango", "color", "activo", "descripcion")

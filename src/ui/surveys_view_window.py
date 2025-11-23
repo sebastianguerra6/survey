@@ -1,25 +1,31 @@
 """Ventana para visualizar todas las encuestas y respuestas."""
 import tkinter as tk
 from tkinter import ttk, messagebox
-from typing import Optional
+from typing import Callable, Dict, Optional
 from datetime import datetime
 from src.services.survey_service import SurveyService
 from src.services.case_service import CaseService
 from src.services.question_service import QuestionService
 
 
-class SurveysViewWindow:
-    """Ventana para ver todas las encuestas y sus respuestas."""
+class SurveysViewWindow(ttk.Frame):
+    """Vista incrustada para ver todas las encuestas y sus respuestas."""
     
-    def __init__(self, parent, survey_service: SurveyService, case_service: CaseService, question_service: QuestionService):
-        """Inicializa la ventana."""
+    def __init__(
+        self,
+        parent,
+        survey_service: SurveyService,
+        case_service: CaseService,
+        question_service: QuestionService,
+        colors: Dict[str, str],
+        on_back: Callable[[], None],
+    ):
+        super().__init__(parent, padding="20 20 20 15", style="Main.TFrame")
         self.survey_service = survey_service
         self.case_service = case_service
         self.question_service = question_service
-        
-        self.window = tk.Toplevel(parent)
-        self.window.title("Visualizar Encuestas y Respuestas")
-        self.window.geometry("1200x700")
+        self.colors = colors
+        self.on_back = on_back
         
         self.selected_survey_id: Optional[int] = None
         
@@ -28,15 +34,23 @@ class SurveysViewWindow:
     
     def _setup_ui(self):
         """Configura la interfaz."""
-        # Frame principal con paneles divididos
-        main_paned = ttk.PanedWindow(self.window, orient=tk.HORIZONTAL)
-        main_paned.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        header = ttk.Frame(self, style="Header.TFrame")
+        header.pack(fill=tk.X, pady=(0, 15))
         
-        # Panel izquierdo: Lista de encuestas
-        left_frame = ttk.LabelFrame(main_paned, text="Encuestas", padding="10")
+        ttk.Button(header, text="< Volver al Panel", command=self.on_back, style="Secondary.TButton").pack(side=tk.LEFT)
+        ttk.Label(header, text="Visualizar Encuestas y Respuestas", style="HeaderTitle.TLabel").pack(anchor=tk.W, pady=(8, 0))
+        ttk.Label(
+            header,
+            text="Explora los resultados históricos, filtra y consulta los detalles de cada respuesta.",
+            style="HeaderSubtitle.TLabel"
+        ).pack(anchor=tk.W)
+        
+        main_paned = ttk.PanedWindow(self, orient=tk.HORIZONTAL)
+        main_paned.pack(fill=tk.BOTH, expand=True)
+        
+        left_frame = ttk.LabelFrame(main_paned, text="Encuestas", padding="15", style="Card.TLabelframe")
         main_paned.add(left_frame, weight=1)
         
-        # Tabla de encuestas
         columns = ('ID', 'Fecha', 'Perfil', 'SID', 'Caso', 'Graduado', 'Puntaje', 'Tier')
         self.surveys_tree = ttk.Treeview(left_frame, columns=columns, show='headings', height=20)
         
@@ -67,19 +81,26 @@ class SurveysViewWindow:
         
         self.surveys_tree.bind('<<TreeviewSelect>>', self._on_survey_select)
         
-        # Panel derecho: Detalles y respuestas
-        right_frame = ttk.Frame(main_paned)
+        right_frame = ttk.Frame(main_paned, style="Main.TFrame")
         main_paned.add(right_frame, weight=2)
         
-        # Frame de información de la encuesta
-        info_frame = ttk.LabelFrame(right_frame, text="Información de la Encuesta", padding="10")
+        info_frame = ttk.LabelFrame(right_frame, text="Información de la Encuesta", padding="15", style="Card.TLabelframe")
         info_frame.pack(fill=tk.X, padx=5, pady=5)
         
         self.info_text = tk.Text(info_frame, height=6, wrap=tk.WORD, state=tk.DISABLED)
         self.info_text.pack(fill=tk.BOTH, expand=True)
+        self.info_text.configure(
+            bg="#f8fafc",
+            relief="flat",
+            highlightthickness=1,
+            highlightbackground=self.colors["border"],
+            highlightcolor=self.colors["accent"],
+            font=("Segoe UI", 10),
+            padx=8,
+            pady=6
+        )
         
-        # Frame de respuestas
-        responses_frame = ttk.LabelFrame(right_frame, text="Respuestas Detalladas", padding="10")
+        responses_frame = ttk.LabelFrame(right_frame, text="Respuestas Detalladas", padding="15", style="Card.TLabelframe")
         responses_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         
         # Tabla de respuestas
@@ -102,12 +123,11 @@ class SurveysViewWindow:
         self.responses_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar_responses.pack(side=tk.RIGHT, fill=tk.Y)
         
-        # Botones de acción
-        button_frame = ttk.Frame(self.window)
-        button_frame.pack(fill=tk.X, padx=10, pady=5)
+        button_frame = ttk.Frame(self, style="Main.TFrame")
+        button_frame.pack(fill=tk.X, pady=10)
         
-        ttk.Button(button_frame, text="Actualizar", command=self._load_surveys).pack(side=tk.LEFT, padx=5)
-        ttk.Button(button_frame, text="Cerrar", command=self.window.destroy).pack(side=tk.RIGHT, padx=5)
+        ttk.Button(button_frame, text="Actualizar", command=self._load_surveys, style="Accent.TButton").pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Volver al Panel", command=self.on_back, style="Secondary.TButton").pack(side=tk.RIGHT, padx=5)
     
     def _load_surveys(self):
         """Carga todas las encuestas en la tabla."""

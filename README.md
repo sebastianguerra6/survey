@@ -29,16 +29,13 @@ survey/
 │   ├── /core/                     # Utilidades (database, init_db, seeds)
 │   └── __init__.py
 │
-├── /data/                         # Base de datos SQLite
-│   └── app.db
-│
 ├── /tests/                        # Pruebas unitarias
 │   ├── test_models.py
 │   ├── test_services.py
 │   └── test_repositories.py
 │
 └── /docs/                         # Documentación técnica
-    └── MIGRATION_TO_SQLSERVER.md
+    └── sqlserver_schema.sql       # Script de creación de base de datos
 ```
 
 ## Instalación
@@ -54,10 +51,9 @@ cd survey
 pip install -r requirements.txt
 ```
 
-3. **Inicializar base de datos**:
-```bash
-python -m src.core.init_db
-```
+3. **Preparar base de datos en SQL Server**  
+   Ejecuta `docs/sqlserver_schema.sql` en tu instancia `PCSEBASTIAN\SQLEXPRESS01`
+   (SSMS o `sqlcmd`) para crear `EvaluationDB` y todas las tablas requeridas.
 
 4. **Insertar datos de ejemplo (opcional)**:
 ```bash
@@ -110,7 +106,7 @@ python main.py
 
 ### Esquema SQL
 
-El esquema está en `src/core/schema.sql` y es compatible con SQL Server para futura migración.
+El script oficial de creación está en `docs/sqlserver_schema.sql`.
 
 ## Pruebas
 
@@ -150,7 +146,7 @@ python -m unittest tests.test_repositories
 
 - **Python 3.8+**
 - **Tkinter**: Interfaz gráfica
-- **SQLite**: Base de datos
+- **SQL Server + pyodbc**: Base de datos
 - **SQL Raw**: Consultas SQL directas (sin ORM)
 
 ## Arquitectura
@@ -159,10 +155,6 @@ python -m unittest tests.test_repositories
 - **Repository Pattern**: Separación de acceso a datos
 - **Service Layer**: Lógica de negocio separada
 - **MVC**: Modelo-Vista-Controlador
-
-## Migración a SQL Server
-
-Ver documentación en `docs/MIGRATION_TO_SQLSERVER.md`
 
 ## Licencia
 

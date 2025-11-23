@@ -1,81 +1,77 @@
-"""Gestor de conexión a la base de datos SQLite."""
-import sqlite3
-import os
-from pathlib import Path
-from typing import Optional
+"""Gestor de conexión a la base de datos SQL Server."""
+from typing import Any, Dict, List, Optional, Sequence, Tuple
+
+import pyodbc
+
+from src.core.config import SQLSERVER_CONNECTION_STRING
 
 
 class DatabaseConnection:
-    """Gestor de conexión a la base de datos SQLite (Singleton)."""
+    """Gestor de conexión a SQL Server usando pyodbc (Singleton)."""
     
     _instance: Optional['DatabaseConnection'] = None
-    _connection: Optional[sqlite3.Connection] = None
+    _connection: Optional[pyodbc.Connection] = None
     
     def __new__(cls):
-        """Patrón Singleton para una única conexión."""
         if cls._instance is None:
             cls._instance = super(DatabaseConnection, cls).__new__(cls)
         return cls._instance
     
     def __init__(self):
-        """Inicializa la conexión si no existe."""
         if self._connection is None:
             self._init_connection()
     
     def _init_connection(self):
-        """Inicializa la conexión a la base de datos."""
-        db_path = self._get_db_path()
-        os.makedirs(os.path.dirname(db_path), exist_ok=True)
-        self._connection = sqlite3.connect(
-            db_path,
-            check_same_thread=False
-        )
-        self._connection.row_factory = sqlite3.Row
+        """Inicializa la conexión usando la cadena configurada."""
+        self._connection = pyodbc.connect(SQLSERVER_CONNECTION_STRING)
+        self._connection.autocommit = False
     
-    @staticmethod
-    def _get_db_path() -> str:
-        """Obtiene la ruta del archivo de base de datos."""
-        # El directorio base es el padre del directorio src/
-        base_dir = Path(__file__).parent.parent.parent
-        return str(base_dir / 'data' / 'app.db')
-    
-    def get_connection(self) -> sqlite3.Connection:
-        """Obtiene la conexión activa."""
+    def get_connection(self) -> pyodbc.Connection:
+        """Entrega la conexión activa."""
         if self._connection is None:
             self._init_connection()
         return self._connection
     
     def close(self):
-        """Cierra la conexión."""
+        """Cierra la conexión activa."""
         if self._connection:
             self._connection.close()
             self._connection = None
     
-    def execute_script(self, script: str):
-        """Ejecuta un script SQL."""
-        conn = self.get_connection()
-        conn.executescript(script)
-        conn.commit()
-    
-    def execute(self, query: str, params: tuple = ()):
-        """Ejecuta una consulta SQL y retorna el cursor."""
+    def execute(self, query: str, params: Sequence[Any] = ()) -> pyodbc.Cursor:
+        """Ejecuta un comando SQL (INSERT/UPDATE/DELETE)."""
         conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute(query, params)
+        
+        # Recuperar ID inserto si aplica
+        if query.lstrip().lower().startswith("insert"):
+            cursor.execute("SELECT SCOPE_IDENTITY()")
+            row = cursor.fetchone()
+            cursor.lastrowid = int(row[0]) if row and row[0] is not None else None
+        else:
+            cursor.lastrowid = None
+        
         conn.commit()
         return cursor
     
-    def fetch_one(self, query: str, params: tuple = ()):
-        """Ejecuta una consulta y retorna una fila."""
+    def fetch_one(self, query: str, params: Sequence[Any] = ()) -> Optional[Dict[str, Any]]:
+        """Retorna una fila como diccionario."""
         conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute(query, params)
-        return cursor.fetchone()
+        row = cursor.fetchone()
+        if not row:
+            return None
+        columns = [col[0] for col in cursor.description]
+        return {col: row[idx] for idx, col in enumerate(columns)}
     
-    def fetch_all(self, query: str, params: tuple = ()):
-        """Ejecuta una consulta y retorna todas las filas."""
+    def fetch_all(self, query: str, params: Sequence[Any] = ()) -> List[Dict[str, Any]]:
+        """Retorna todas las filas como diccionarios."""
         conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute(query, params)
-        return cursor.fetchall()
+        rows = cursor.fetchall()
+        columns = [col[0] for col in cursor.description]
+        return [{col: row[idx] for idx, col in enumerate(columns)} for row in rows]
 

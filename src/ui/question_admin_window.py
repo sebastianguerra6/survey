@@ -1,24 +1,30 @@
 """Ventana de administración de Preguntas."""
 import tkinter as tk
 from tkinter import ttk, messagebox
-from typing import Optional
+from typing import Callable, Dict, Optional
 from src.services.question_service import QuestionService
 from src.services.profile_service import ProfileService
 from src.services.area_service import AreaService
 
 
-class QuestionAdminWindow:
-    """Ventana para CRUD de preguntas."""
+class QuestionAdminWindow(ttk.Frame):
+    """Vista incrustada para administrar preguntas y prefills."""
     
-    def __init__(self, parent, question_service: QuestionService, profile_service: ProfileService, area_service: AreaService):
-        """Inicializa la ventana."""
+    def __init__(
+        self,
+        parent,
+        question_service: QuestionService,
+        profile_service: ProfileService,
+        area_service: AreaService,
+        colors: Dict[str, str],
+        on_back: Callable[[], None],
+    ):
+        super().__init__(parent, padding="20 20 20 15", style="Main.TFrame")
         self.question_service = question_service
         self.profile_service = profile_service
         self.area_service = area_service
-        
-        self.window = tk.Toplevel(parent)
-        self.window.title("Administración de Preguntas")
-        self.window.geometry("900x700")
+        self.colors = colors
+        self.on_back = on_back
         
         self.selected_id: Optional[int] = None
         
@@ -29,88 +35,108 @@ class QuestionAdminWindow:
     
     def _setup_ui(self):
         """Configura la interfaz."""
-        # Frame de formulario
-        form_frame = ttk.LabelFrame(self.window, text="Nuevo/Editar Pregunta", padding="10")
-        form_frame.pack(fill=tk.X, padx=10, pady=10)
+        header = ttk.Frame(self, style="Header.TFrame")
+        header.pack(fill=tk.X, pady=(0, 15))
         
-        # Área
-        ttk.Label(form_frame, text="Área:").grid(row=0, column=0, sticky=tk.W, padx=5, pady=5)
-        self.area_combo = ttk.Combobox(form_frame, width=30, state="readonly")
-        self.area_combo.grid(row=0, column=1, padx=5, pady=5)
+        ttk.Button(header, text="< Volver al Panel", command=self.on_back, style="Secondary.TButton").pack(side=tk.LEFT)
+        ttk.Label(header, text="Administración de Preguntas", style="HeaderTitle.TLabel").pack(anchor=tk.W, pady=(8, 0))
+        ttk.Label(
+            header,
+            text="Gestiona el banco de preguntas, sus penalizaciones y respuestas por defecto.",
+            style="HeaderSubtitle.TLabel"
+        ).pack(anchor=tk.W)
         
-        # Texto
-        ttk.Label(form_frame, text="Texto:").grid(row=1, column=0, sticky=tk.W, padx=5, pady=5)
-        self.text_entry = tk.Text(form_frame, width=60, height=3)
-        self.text_entry.grid(row=1, column=1, columnspan=2, padx=5, pady=5)
+        form_frame = ttk.LabelFrame(self, text="Nuevo/Editar Pregunta", padding="15", style="Card.TLabelframe")
+        form_frame.pack(fill=tk.X, pady=(0, 15))
+        form_frame.columnconfigure(1, weight=1)
+        form_frame.columnconfigure(2, weight=1)
         
-        # Penalización Graduado
-        ttk.Label(form_frame, text="Penalización Graduado:").grid(row=2, column=0, sticky=tk.W, padx=5, pady=5)
-        self.penalty_graduated_entry = ttk.Entry(form_frame, width=20)
-        self.penalty_graduated_entry.grid(row=2, column=1, padx=5, pady=5)
-        self.penalty_graduated_entry.insert(0, "0.0")
+        ttk.Label(form_frame, text="Área:", style="LabelCard.TLabel").grid(row=0, column=0, sticky=tk.W, padx=5, pady=5)
+        self.area_combo = ttk.Combobox(form_frame, state="readonly", style="Main.TCombobox")
+        self.area_combo.grid(row=0, column=1, padx=5, pady=5, sticky=tk.EW)
         
-        # Penalización No Graduado
-        ttk.Label(form_frame, text="Penalización No Graduado:").grid(row=2, column=2, sticky=tk.W, padx=5, pady=5)
-        self.penalty_not_graduated_entry = ttk.Entry(form_frame, width=20)
-        self.penalty_not_graduated_entry.grid(row=2, column=3, padx=5, pady=5)
-        self.penalty_not_graduated_entry.insert(0, "0.0")
-        
-        # Activa
         self.active_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(form_frame, text="Activa", variable=self.active_var).grid(
-            row=0, column=2, padx=5, pady=5
+        ttk.Checkbutton(form_frame, text="Activa", variable=self.active_var, style="Main.TCheckbutton").grid(
+            row=0, column=2, padx=5, pady=5, sticky=tk.W
         )
         
-        # Botones
-        button_frame = ttk.Frame(form_frame)
+        ttk.Label(form_frame, text="Texto:", style="LabelCard.TLabel").grid(row=1, column=0, sticky=tk.NW, padx=5, pady=5)
+        self.text_entry = tk.Text(form_frame, height=4, wrap=tk.WORD)
+        self.text_entry.grid(row=1, column=1, columnspan=2, padx=5, pady=5, sticky=tk.EW)
+        self.text_entry.configure(
+            bg="#f8fafc",
+            relief="flat",
+            highlightthickness=1,
+            highlightbackground=self.colors["border"],
+            highlightcolor=self.colors["accent"],
+            font=("Segoe UI", 10),
+            padx=8,
+            pady=6
+        )
+        
+        ttk.Label(form_frame, text="Penalización Graduado:", style="LabelCard.TLabel").grid(row=2, column=0, sticky=tk.W, padx=5, pady=5)
+        self.penalty_graduated_entry = ttk.Entry(form_frame, style="Main.TEntry")
+        self.penalty_graduated_entry.grid(row=2, column=1, padx=5, pady=5, sticky=tk.W)
+        self.penalty_graduated_entry.insert(0, "0.0")
+        
+        ttk.Label(form_frame, text="Penalización No Graduado:", style="LabelCard.TLabel").grid(row=2, column=2, sticky=tk.W, padx=5, pady=5)
+        self.penalty_not_graduated_entry = ttk.Entry(form_frame, style="Main.TEntry")
+        self.penalty_not_graduated_entry.grid(row=2, column=3, padx=5, pady=5, sticky=tk.W)
+        self.penalty_not_graduated_entry.insert(0, "0.0")
+        
+        button_frame = ttk.Frame(form_frame, style="Main.TFrame")
         button_frame.grid(row=3, column=0, columnspan=4, pady=10)
         
-        ttk.Button(button_frame, text="Crear", command=self._create).pack(side=tk.LEFT, padx=5)
-        ttk.Button(button_frame, text="Actualizar", command=self._update).pack(side=tk.LEFT, padx=5)
-        ttk.Button(button_frame, text="Limpiar", command=self._clear_form).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Crear", command=self._create, style="Accent.TButton").pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Actualizar", command=self._update, style="Secondary.TButton").pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Limpiar", command=self._clear_form, style="Secondary.TButton").pack(side=tk.LEFT, padx=5)
         
-        # Frame de prefills por perfil
-        prefills_frame = ttk.LabelFrame(self.window, text="Respuestas por Defecto por Perfil", padding="10")
-        prefills_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        prefills_frame = ttk.LabelFrame(self, text="Respuestas por Defecto por Perfil", padding="15", style="Card.TLabelframe")
+        prefills_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 15))
+        prefills_frame.columnconfigure(1, weight=1)
+        prefills_frame.columnconfigure(3, weight=1)
         
-        # Perfil selector
-        ttk.Label(prefills_frame, text="Perfil:").grid(row=0, column=0, sticky=tk.W, padx=5, pady=5)
-        self.profile_combo = ttk.Combobox(prefills_frame, width=30, state="readonly")
-        self.profile_combo.grid(row=0, column=1, padx=5, pady=5)
+        ttk.Label(prefills_frame, text="Perfil:", style="LabelCard.TLabel").grid(row=0, column=0, sticky=tk.W, padx=5, pady=5)
+        self.profile_combo = ttk.Combobox(prefills_frame, state="readonly", style="Main.TCombobox")
+        self.profile_combo.grid(row=0, column=1, padx=5, pady=5, sticky=tk.EW)
         
-        # Respuesta por defecto
-        ttk.Label(prefills_frame, text="Respuesta por Defecto:").grid(row=0, column=2, sticky=tk.W, padx=5, pady=5)
+        ttk.Label(prefills_frame, text="Respuesta por Defecto:", style="LabelCard.TLabel").grid(row=0, column=2, sticky=tk.W, padx=5, pady=5)
         self.default_answer_combo = ttk.Combobox(
             prefills_frame,
             values=["YES", "NO", "NA"],
-            width=15,
-            state="readonly"
+            state="readonly",
+            style="Main.TCombobox"
         )
-        self.default_answer_combo.grid(row=0, column=3, padx=5, pady=5)
+        self.default_answer_combo.grid(row=0, column=3, padx=5, pady=5, sticky=tk.EW)
         
-        ttk.Button(prefills_frame, text="Guardar Prefill", command=self._save_prefill).grid(
+        ttk.Button(prefills_frame, text="Guardar Prefill", command=self._save_prefill, style="Accent.TButton").grid(
             row=0, column=4, padx=5, pady=5
         )
         
-        # Lista de prefills
-        ttk.Label(prefills_frame, text="Prefills Configurados:").grid(row=1, column=0, sticky=tk.W, padx=5, pady=5)
-        self.prefills_tree = ttk.Treeview(prefills_frame, columns=('Perfil', 'Respuesta'), show='headings', height=10)
+        ttk.Label(prefills_frame, text="Prefills Configurados:", style="MutedCard.TLabel").grid(
+            row=1, column=0, columnspan=5, sticky=tk.W, padx=5, pady=(10, 5)
+        )
+        
+        self.prefills_tree = ttk.Treeview(prefills_frame, columns=('Perfil', 'Respuesta'), show='headings', height=8)
         self.prefills_tree.heading('Perfil', text='Perfil')
         self.prefills_tree.heading('Respuesta', text='Respuesta')
-        self.prefills_tree.column('Perfil', width=200)
+        self.prefills_tree.column('Perfil', width=220)
         self.prefills_tree.column('Respuesta', width=150)
-        self.prefills_tree.grid(row=2, column=0, columnspan=5, sticky=tk.W+tk.E+tk.N+tk.S, padx=5, pady=5)
+        self.prefills_tree.grid(row=2, column=0, columnspan=5, sticky=tk.NSEW, padx=5, pady=5)
+        prefills_frame.rowconfigure(2, weight=1)
         
-        # Lista de preguntas
-        list_frame = ttk.LabelFrame(self.window, text="Preguntas Existentes", padding="10")
-        list_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        list_frame = ttk.LabelFrame(self, text="Preguntas Existentes", padding="15", style="Card.TLabelframe")
+        list_frame.pack(fill=tk.BOTH, expand=True)
         
         columns = ('ID', 'Área', 'Texto', 'Penalización Grad', 'Penalización No Grad', 'Activa')
         self.tree = ttk.Treeview(list_frame, columns=columns, show='headings', height=10)
         
         for col in columns:
+            width = 80 if col == 'ID' else 150
+            if col == 'Texto':
+                width = 280
             self.tree.heading(col, text=col)
-            self.tree.column(col, width=120)
+            self.tree.column(col, width=width, anchor=tk.W)
         
         scrollbar = ttk.Scrollbar(list_frame, orient=tk.VERTICAL, command=self.tree.yview)
         self.tree.configure(yscrollcommand=scrollbar.set)
@@ -120,12 +146,11 @@ class QuestionAdminWindow:
         
         self.tree.bind('<<TreeviewSelect>>', self._on_select)
         
-        # Botones de acción
-        action_frame = ttk.Frame(list_frame)
-        action_frame.pack(fill=tk.X, pady=5)
+        action_frame = ttk.Frame(list_frame, style="Main.TFrame")
+        action_frame.pack(fill=tk.X, pady=10)
         
-        ttk.Button(action_frame, text="Editar", command=self._edit).pack(side=tk.LEFT, padx=5)
-        ttk.Button(action_frame, text="Eliminar", command=self._delete).pack(side=tk.LEFT, padx=5)
+        ttk.Button(action_frame, text="Editar", command=self._edit, style="Secondary.TButton").pack(side=tk.LEFT, padx=5)
+        ttk.Button(action_frame, text="Eliminar", command=self._delete, style="Secondary.TButton").pack(side=tk.LEFT, padx=5)
     
     def _load_profiles(self):
         """Carga los perfiles."""

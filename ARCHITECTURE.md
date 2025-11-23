@@ -103,7 +103,7 @@ SurveyRepository
     ↓ Ejecuta SQL
 DatabaseConnection
     ↓ Persiste datos
-SQLite Database
+SQL Server Database
 ```
 
 ### Consulta de Preguntas
@@ -133,40 +133,9 @@ Cada capa maneja errores apropiados a su nivel:
 
 ## SQL Estándar
 
-El esquema SQL está diseñado para ser compatible con SQL Server:
-
-### Compatibilidades
-
-✅ **Funciona en SQLite y SQL Server:**
-- `INTEGER`, `TEXT`, `REAL`
-- `PRIMARY KEY`, `FOREIGN KEY`
-- `CHECK` constraints
-- `UNIQUE` constraints
-- `DEFAULT` values
-- Índices
-
-### Cambios para migración a SQL Server
-
-1. **Autoincremento**:
-   - SQLite: `AUTOINCREMENT`
-   - SQL Server: `IDENTITY(1,1)`
-
-2. **Tipos de fecha**:
-   - SQLite: `DATETIME`
-   - SQL Server: `DATETIME` o `DATETIME2`
-
-3. **Booleanos**:
-   - SQLite: `INTEGER` (0/1)
-   - SQL Server: `BIT` (0/1)
+El esquema SQL se entrega optimizado para SQL Server (`docs/sqlserver_schema.sql`), usando `IDENTITY`, `DATETIME2`, `BIT` y constraints explícitas.
 
 ## Extensiones Futuras
-
-### Migración a SQL Server
-
-1. Actualizar `db_connection.py` con conexión a SQL Server (pyodbc)
-2. Modificar `schema.sql` con sintaxis SQL Server
-3. Ajustar tipos de datos según necesidades
-4. Las consultas SQL crudas facilitan la migración
 
 ### Nuevas Funcionalidades
 

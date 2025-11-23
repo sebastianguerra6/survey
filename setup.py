@@ -9,7 +9,7 @@ setup(
     packages=find_packages(),
     python_requires=">=3.8",
     install_requires=[
-        # Tkinter y SQLite vienen con Python estándar
+        # Dependencias declaradas en requirements.txt (pyodbc, openpyxl, etc.)
     ],
     entry_points={
         'console_scripts': [

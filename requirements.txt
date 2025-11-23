@@ -1,8 +1,7 @@
 # Dependencias del Sistema de Evaluación de Analistas
 
-# Base de datos (SQLite viene con Python)
-# Para SQL Server, descomentar:
-# pyodbc>=4.0.0
+# Base de datos (SQL Server)
+pyodbc>=4.0.0
 
 # Interfaz gráfica (Tkinter viene con Python)
 # No requiere instalación adicional

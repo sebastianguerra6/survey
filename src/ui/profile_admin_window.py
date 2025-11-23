@@ -1,20 +1,24 @@
 """Ventana de administración de Perfiles."""
 import tkinter as tk
 from tkinter import ttk, messagebox
-from typing import Optional
+from typing import Callable, Dict, Optional
 from src.services.profile_service import ProfileService
 
 
-class ProfileAdminWindow:
-    """Ventana para CRUD de perfiles."""
+class ProfileAdminWindow(ttk.Frame):
+    """Vista incrustada para CRUD de perfiles."""
     
-    def __init__(self, parent, profile_service: ProfileService):
-        """Inicializa la ventana."""
+    def __init__(
+        self,
+        parent,
+        profile_service: ProfileService,
+        colors: Dict[str, str],
+        on_back: Callable[[], None],
+    ):
+        super().__init__(parent, padding="20 20 20 15", style="Main.TFrame")
         self.profile_service = profile_service
-        
-        self.window = tk.Toplevel(parent)
-        self.window.title("Administración de Perfiles")
-        self.window.geometry("600x500")
+        self.colors = colors
+        self.on_back = on_back
         
         self.selected_id: Optional[int] = None
         
@@ -23,39 +27,47 @@ class ProfileAdminWindow:
     
     def _setup_ui(self):
         """Configura la interfaz."""
-        # Frame de formulario
-        form_frame = ttk.LabelFrame(self.window, text="Nuevo/Editar Perfil", padding="10")
-        form_frame.pack(fill=tk.X, padx=10, pady=10)
+        header = ttk.Frame(self, style="Header.TFrame")
+        header.pack(fill=tk.X, pady=(0, 15))
         
-        # Nombre
-        ttk.Label(form_frame, text="Nombre:").grid(row=0, column=0, sticky=tk.W, padx=5, pady=5)
-        self.name_entry = ttk.Entry(form_frame, width=30)
-        self.name_entry.grid(row=0, column=1, padx=5, pady=5)
+        ttk.Button(header, text="< Volver al Panel", command=self.on_back, style="Secondary.TButton").pack(side=tk.LEFT)
+        ttk.Label(header, text="Administración de Perfiles", style="HeaderTitle.TLabel").pack(anchor=tk.W, pady=(8, 0))
+        ttk.Label(
+            header,
+            text="Define los perfiles disponibles para los evaluadores.",
+            style="HeaderSubtitle.TLabel"
+        ).pack(anchor=tk.W)
         
-        # Activo
+        form_frame = ttk.LabelFrame(self, text="Nuevo/Editar Perfil", padding="15", style="Card.TLabelframe")
+        form_frame.pack(fill=tk.X, pady=(0, 15))
+        
+        ttk.Label(form_frame, text="Nombre:", style="LabelCard.TLabel").grid(row=0, column=0, sticky=tk.W, padx=5, pady=5)
+        self.name_entry = ttk.Entry(form_frame, width=30, style="Main.TEntry")
+        self.name_entry.grid(row=0, column=1, padx=5, pady=5, sticky=tk.EW)
+        form_frame.columnconfigure(1, weight=1)
+        
         self.active_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(form_frame, text="Activo", variable=self.active_var).grid(
+        ttk.Checkbutton(form_frame, text="Activo", variable=self.active_var, style="Main.TCheckbutton").grid(
             row=0, column=2, padx=5, pady=5
         )
         
-        # Botones
-        button_frame = ttk.Frame(form_frame)
+        button_frame = ttk.Frame(form_frame, style="Main.TFrame")
         button_frame.grid(row=1, column=0, columnspan=3, pady=10)
         
-        ttk.Button(button_frame, text="Crear", command=self._create).pack(side=tk.LEFT, padx=5)
-        ttk.Button(button_frame, text="Actualizar", command=self._update).pack(side=tk.LEFT, padx=5)
-        ttk.Button(button_frame, text="Limpiar", command=self._clear_form).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Crear", command=self._create, style="Accent.TButton").pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Actualizar", command=self._update, style="Secondary.TButton").pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Limpiar", command=self._clear_form, style="Secondary.TButton").pack(side=tk.LEFT, padx=5)
         
-        # Lista de perfiles
-        list_frame = ttk.LabelFrame(self.window, text="Perfiles Existentes", padding="10")
-        list_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        list_frame = ttk.LabelFrame(self, text="Perfiles Existentes", padding="15", style="Card.TLabelframe")
+        list_frame.pack(fill=tk.BOTH, expand=True)
         
         columns = ('ID', 'Nombre', 'Activo')
         self.tree = ttk.Treeview(list_frame, columns=columns, show='headings', height=15)
         
+        column_widths = {'ID': 80, 'Nombre': 200, 'Activo': 80}
         for col in columns:
             self.tree.heading(col, text=col)
-            self.tree.column(col, width=150)
+            self.tree.column(col, width=column_widths[col], anchor=tk.W)
         
         scrollbar = ttk.Scrollbar(list_frame, orient=tk.VERTICAL, command=self.tree.yview)
         self.tree.configure(yscrollcommand=scrollbar.set)
@@ -65,12 +77,11 @@ class ProfileAdminWindow:
         
         self.tree.bind('<<TreeviewSelect>>', self._on_select)
         
-        # Botones de acción
-        action_frame = ttk.Frame(list_frame)
-        action_frame.pack(fill=tk.X, pady=5)
+        action_frame = ttk.Frame(list_frame, style="Main.TFrame")
+        action_frame.pack(fill=tk.X, pady=10)
         
-        ttk.Button(action_frame, text="Editar", command=self._edit).pack(side=tk.LEFT, padx=5)
-        ttk.Button(action_frame, text="Eliminar", command=self._delete).pack(side=tk.LEFT, padx=5)
+        ttk.Button(action_frame, text="Editar", command=self._edit, style="Secondary.TButton").pack(side=tk.LEFT, padx=5)
+        ttk.Button(action_frame, text="Eliminar", command=self._delete, style="Secondary.TButton").pack(side=tk.LEFT, padx=5)
     
     def _load_profiles(self):
         """Carga los perfiles en la lista."""
