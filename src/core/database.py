@@ -6,6 +6,17 @@ import pyodbc
 from src.core.config import SQLSERVER_CONNECTION_STRING
 
 
+class DBExecutionResult:
+    """Wrapper para exponer información adicional del cursor."""
+
+    def __init__(self, cursor: pyodbc.Cursor, lastrowid: Optional[int]):
+        self._cursor = cursor
+        self.lastrowid = lastrowid
+
+    def __getattr__(self, item):
+        return getattr(self._cursor, item)
+
+
 class DatabaseConnection:
     """Gestor de conexión a SQL Server usando pyodbc (Singleton)."""
     
@@ -38,22 +49,25 @@ class DatabaseConnection:
             self._connection.close()
             self._connection = None
     
-    def execute(self, query: str, params: Sequence[Any] = ()) -> pyodbc.Cursor:
+    def execute(self, query: str, params: Sequence[Any] = ()) -> DBExecutionResult:
         """Ejecuta un comando SQL (INSERT/UPDATE/DELETE)."""
         conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute(query, params)
         
         # Recuperar ID inserto si aplica
+        lastrowid: Optional[int] = None
         if query.lstrip().lower().startswith("insert"):
             cursor.execute("SELECT SCOPE_IDENTITY()")
             row = cursor.fetchone()
-            cursor.lastrowid = int(row[0]) if row and row[0] is not None else None
-        else:
-            cursor.lastrowid = None
+            if row and row[0] is not None:
+                try:
+                    lastrowid = int(row[0])
+                except (TypeError, ValueError):
+                    lastrowid = None
         
         conn.commit()
-        return cursor
+        return DBExecutionResult(cursor, lastrowid)
     
     def fetch_one(self, query: str, params: Sequence[Any] = ()) -> Optional[Dict[str, Any]]:
         """Retorna una fila como diccionario."""

@@ -81,6 +81,12 @@ class SurveyService:
     def get_all_surveys(self) -> List[Survey]:
         """Obtiene todas las encuestas."""
         return self.survey_repo.find_all()
+
+    def get_history_for_sid(self, sid: str) -> List[Survey]:
+        """Obtiene el historial de encuestas para un SID."""
+        if not sid:
+            return []
+        return self.survey_repo.find_by_sid(sid)
     
     def export_to_csv(self, filepath: str) -> bool:
         """Exporta todas las encuestas a CSV."""

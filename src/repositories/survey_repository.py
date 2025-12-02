@@ -114,6 +114,32 @@ class SurveyRepository(BaseRepository):
                 responses=responses
             ))
         return surveys
+
+    def find_by_sid(self, sid: str) -> List[Survey]:
+        """Obtiene todas las encuestas asociadas a un SID específico."""
+        rows = self.db.fetch_all(
+            """SELECT id, evaluator_profile, sid, case_id, is_graduated, final_score, tier_id, tier_name, created_at
+               FROM surveys
+               WHERE sid = ?
+               ORDER BY created_at DESC""",
+            (sid,)
+        )
+        surveys = []
+        for row in rows:
+            responses = self.get_responses(row['id'])
+            surveys.append(Survey(
+                id=row['id'],
+                evaluator_profile=row['evaluator_profile'],
+                sid=row['sid'],
+                case_id=row['case_id'],
+                is_graduated=bool(row['is_graduated']),
+                final_score=row['final_score'],
+                tier_id=row['tier_id'],
+                tier_name=row['tier_name'],
+                created_at=datetime.fromisoformat(row['created_at']) if row['created_at'] else None,
+                responses=responses
+            ))
+        return surveys
     
     def export_to_csv_data(self) -> List[dict]:
         """Exporta todas las encuestas a formato CSV."""

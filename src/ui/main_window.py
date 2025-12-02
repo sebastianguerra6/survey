@@ -175,32 +175,92 @@ class MainWindow:
     
     def _setup_ui(self):
         """Configura la interfaz de usuario."""
-        self._build_menu()
-        
         self.content_container = ttk.Frame(self.root, padding="0 0 0 0", style="Main.TFrame")
         self.content_container.pack(fill=tk.BOTH, expand=True)
         
-        self.main_dashboard = ttk.Frame(self.content_container, padding="20 20 20 15", style="Main.TFrame")
+        # Crear contenedor principal con sidebar y contenido
+        main_container = ttk.Frame(self.content_container, style="Main.TFrame")
+        main_container.pack(fill=tk.BOTH, expand=True)
+        
+        # Sidebar izquierdo con botones de administración
+        self._build_sidebar(main_container)
+        
+        # Contenedor del contenido principal
+        self.right_content = ttk.Frame(main_container, style="Main.TFrame")
+        self.right_content.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        
+        self.main_dashboard = ttk.Frame(self.right_content, padding="20 20 20 15", style="Main.TFrame")
         self.main_dashboard.pack(fill=tk.BOTH, expand=True)
         
         self._build_dashboard()
 
-    def _build_menu(self):
-        """Crea el menú superior con las opciones de administración."""
-        menubar = tk.Menu(self.root)
-        self.root.config(menu=menubar)
+    def _build_sidebar(self, parent):
+        """Crea la barra lateral izquierda con botones de administración."""
+        sidebar = ttk.Frame(parent, style="Main.TFrame", width=200)
+        sidebar.pack(side=tk.LEFT, fill=tk.Y, padx=(0, 10))
+        sidebar.pack_propagate(False)
         
-        admin_menu = tk.Menu(menubar, tearoff=0)
-        menubar.add_cascade(label="Administración", menu=admin_menu)
-        admin_menu.add_command(label="Áreas", command=self._open_area_admin)
-        admin_menu.add_command(label="Casos", command=self._open_case_admin)
-        admin_menu.add_command(label="Preguntas", command=self._open_question_admin)
-        admin_menu.add_command(label="Perfiles", command=self._open_profile_admin)
-        admin_menu.add_command(label="Tiers", command=self._open_tier_admin)
+        # Título del sidebar
+        title_frame = ttk.Frame(sidebar, style="Main.TFrame", padding="15 20 15 10")
+        title_frame.pack(fill=tk.X)
+        ttk.Label(
+            title_frame,
+            text="Administración",
+            style="HeaderTitle.TLabel",
+            font=("Segoe UI", 16, "bold")
+        ).pack(anchor=tk.W)
         
-        view_menu = tk.Menu(menubar, tearoff=0)
-        menubar.add_cascade(label="Visualizar", menu=view_menu)
-        view_menu.add_command(label="Todas las Encuestas", command=self._open_surveys_view)
+        # Separador
+        ttk.Separator(sidebar).pack(fill=tk.X, padx=10, pady=(0, 10))
+        
+        # Contenedor de botones
+        buttons_frame = ttk.Frame(sidebar, style="Main.TFrame", padding="10 5")
+        buttons_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Botón para volver al dashboard
+        dashboard_btn = ttk.Button(
+            buttons_frame,
+            text="Panel Principal",
+            command=self._show_dashboard,
+            style="Accent.TButton",
+            width=20
+        )
+        dashboard_btn.pack(fill=tk.X, pady=(0, 10))
+        
+        # Botones de administración
+        admin_buttons = [
+            ("Áreas", self._open_area_admin),
+            ("Casos", self._open_case_admin),
+            ("Preguntas", self._open_question_admin),
+            ("Perfiles", self._open_profile_admin),
+            ("Tiers", self._open_tier_admin),
+        ]
+        
+        for text, command in admin_buttons:
+            btn = ttk.Button(
+                buttons_frame,
+                text=text,
+                command=command,
+                style="Secondary.TButton",
+                width=20
+            )
+            btn.pack(fill=tk.X, pady=5)
+        
+        # Separador
+        ttk.Separator(sidebar).pack(fill=tk.X, padx=10, pady=10)
+        
+        # Botón de visualización
+        view_btn = ttk.Button(
+            buttons_frame,
+            text="Ver Encuestas",
+            command=self._open_surveys_view,
+            style="Secondary.TButton",
+            width=20
+        )
+        view_btn.pack(fill=tk.X, pady=5)
+        
+        # Guardar referencia al sidebar
+        self.sidebar = sidebar
 
     def _build_dashboard(self):
         """Construye el panel principal de evaluación dentro del contenedor."""
@@ -219,7 +279,7 @@ class MainWindow:
         # Frame superior - Información de evaluación
         top_frame = ttk.LabelFrame(self.main_dashboard, text="Información de Evaluación", padding="15", style="Card.TLabelframe")
         top_frame.pack(fill=tk.X, pady=(0, 10))
-        for col in range(4):
+        for col in range(5):
             top_frame.columnconfigure(col, weight=1)
         
         ttk.Label(top_frame, text="Perfil del Evaluador:", style="LabelCard.TLabel").grid(row=0, column=0, sticky=tk.W, padx=5, pady=5)
@@ -231,6 +291,13 @@ class MainWindow:
         ttk.Label(top_frame, text="SID:", style="LabelCard.TLabel").grid(row=0, column=2, sticky=tk.W, padx=5, pady=5)
         self.sid_entry = ttk.Entry(top_frame, width=30, style="Main.TEntry")
         self.sid_entry.grid(row=0, column=3, padx=5, pady=5, sticky=tk.EW)
+
+        ttk.Button(
+            top_frame,
+            text="Ver Historial SID",
+            command=self._open_history_window,
+            style="Secondary.TButton"
+        ).grid(row=0, column=4, padx=5, pady=5, sticky=tk.EW)
         
         ttk.Label(top_frame, text="Es Graduado:", style="LabelCard.TLabel").grid(row=1, column=0, sticky=tk.W, padx=5, pady=5)
         self.is_graduated_var = tk.BooleanVar(value=False)
@@ -329,7 +396,7 @@ class MainWindow:
         if self.active_module_frame:
             self.active_module_frame.destroy()
         self.main_dashboard.pack_forget()
-        self.active_module_frame = builder(self.content_container)
+        self.active_module_frame = builder(self.right_content)
         self.active_module_frame.pack(fill=tk.BOTH, expand=True)
         self.root.title(f"{self.base_title} - {title_suffix}")
     
@@ -373,6 +440,27 @@ class MainWindow:
             import traceback
             traceback.print_exc()
             messagebox.showerror("Error", f"Error al cargar datos: {str(e)}")
+
+    def _open_history_window(self):
+        """Abre la ventana con el historial de respuestas para el SID actual."""
+        sid = self.sid_entry.get().strip()
+        if not sid:
+            messagebox.showwarning("Advertencia", "Ingrese el SID para consultar el historial.")
+            return
+
+        try:
+            from src.ui.survey_history_window import SurveyHistoryWindow
+
+            SurveyHistoryWindow(
+                self.root,
+                sid,
+                self.survey_service,
+                self.case_service,
+                self.question_service,
+                self.colors,
+            )
+        except Exception as e:
+            messagebox.showerror("Error", f"No se pudo abrir el historial: {str(e)}")
     
     def _on_profile_changed(self, event=None):
         """Maneja el cambio de perfil."""
