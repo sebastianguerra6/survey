@@ -120,11 +120,10 @@ class TierRepository(BaseRepository):
         """Obtiene el tier que aplica para un puntaje en un área."""
         row = self.db.fetch_one(
             """
-            SELECT id, area_id, name, min_score, max_score, description, color, active
+            SELECT TOP 1 id, area_id, name, min_score, max_score, description, color, active
             FROM tiers
             WHERE area_id = ? AND active = 1 AND ? BETWEEN min_score AND max_score
             ORDER BY min_score DESC
-            LIMIT 1
             """,
             (area_id, score)
         )

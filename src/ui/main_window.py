@@ -299,13 +299,9 @@ class MainWindow:
             style="Secondary.TButton"
         ).grid(row=0, column=4, padx=5, pady=5, sticky=tk.EW)
         
-        ttk.Label(top_frame, text="Es Graduado:", style="LabelCard.TLabel").grid(row=1, column=0, sticky=tk.W, padx=5, pady=5)
-        self.is_graduated_var = tk.BooleanVar(value=False)
-        ttk.Checkbutton(top_frame, text="Sí", variable=self.is_graduated_var, style="Main.TCheckbutton").grid(row=1, column=1, padx=5, pady=5, sticky=tk.W)
-        
-        ttk.Label(top_frame, text="Caso:", style="LabelCard.TLabel").grid(row=1, column=2, sticky=tk.W, padx=5, pady=5)
+        ttk.Label(top_frame, text="Caso:", style="LabelCard.TLabel").grid(row=1, column=0, sticky=tk.W, padx=5, pady=5)
         self.case_combo = ttk.Combobox(top_frame, width=30, state="normal", style="Main.TCombobox")
-        self.case_combo.grid(row=1, column=3, padx=5, pady=5, sticky=tk.EW)
+        self.case_combo.grid(row=1, column=1, padx=5, pady=5, sticky=tk.EW, columnspan=2)
         
         ttk.Label(top_frame, text="Área:", style="LabelCard.TLabel").grid(row=2, column=0, sticky=tk.W, padx=5, pady=5)
         self.area_combo = ttk.Combobox(top_frame, width=30, state="readonly", style="Main.TCombobox")
@@ -624,7 +620,6 @@ class MainWindow:
                 pady=6,
                 insertbackground="#0f172a"
             )
-            comment_entry.config(disabledbackground="#f8fafc", disabledforeground="#94a3b8")
             self.comment_entries[question.id] = comment_entry
             
             # Inicializar respuesta
@@ -637,10 +632,11 @@ class MainWindow:
         
         # Mostrar/ocultar comentario según respuesta
         if answer == 'NO':
-            comment_entry.config(state='normal')
+            self._set_comment_entry_state(comment_entry, enabled=True)
         else:
-            comment_entry.config(state='disabled')
+            comment_entry.config(state='normal')
             comment_entry.delete('1.0', tk.END)
+            self._set_comment_entry_state(comment_entry, enabled=False)
         
         # Actualizar respuesta
         question = next((q for q in self.questions if q.id == question_id), None)
@@ -650,7 +646,7 @@ class MainWindow:
             # Calcular penalización
             penalty = 0.0
             if answer == 'NO':
-                penalty = question.get_penalty(self.is_graduated_var.get())
+                penalty = question.get_penalty(self._current_graduated_status())
             
             self.current_responses[question_id] = SurveyResponse(
                 id=None,
@@ -663,10 +659,30 @@ class MainWindow:
         
         self._update_score()
     
+    def _set_comment_entry_state(self, entry: tk.Text, enabled: bool) -> None:
+        """Actualiza el estado y colores del campo de comentario."""
+        if enabled:
+            entry.config(
+                state='normal',
+                background="#f8fafc",
+                foreground="#0f172a",
+                insertbackground="#0f172a"
+            )
+        else:
+            entry.config(
+                state='disabled',
+                background="#f1f5f9",
+                foreground="#94a3b8"
+            )
+    
+    def _current_graduated_status(self) -> bool:
+        """Indica si la evaluación aplica reglas de graduado (actualmente deshabilitado)."""
+        return False
+    
     def _update_score(self):
         """Actualiza el puntaje actual."""
         score = 100.0
-        is_graduated = self.is_graduated_var.get()
+        is_graduated = self._current_graduated_status()
         
         for question in self.questions:
             response = self.current_responses.get(question.id)
@@ -772,7 +788,7 @@ class MainWindow:
                 evaluator_profile=self.profile_combo.get(),
                 sid=self.sid_entry.get().strip(),
                 case_id=case_id,
-                is_graduated=self.is_graduated_var.get(),
+                is_graduated=self._current_graduated_status(),
                 responses=responses
             )
             
@@ -785,7 +801,6 @@ class MainWindow:
             # Limpiar formulario
             self.sid_entry.delete(0, tk.END)
             self.case_combo.set('')
-            self.is_graduated_var.set(False)
             self.selected_area_id = None
             self.tier_label.config(text="Tier Actual: Sin asignar", foreground=self.colors["text_muted"])
             self.current_tier = None
